@@ -38,6 +38,7 @@ To begin contributing, [sign the CLA](https://diem.com/en-US/cla-sign/). You can
 * [The Diem Blockchain](https://developers.diem.com/docs/technical-papers/the-diem-blockchain-paper)
 * [Move: A Language With Programmable Resources](https://developers.diem.com/docs/technical-papers/move-paper)
 * [State Machine Replication in the Diem Blockchain](https://developers.diem.com/docs/technical-papers/state-machine-replication-paper)
+* [Jellyfish Merkle Tree](https://developers.diem.com/docs/technical-papers/jellyfish-merkle-tree-paper)
 
 ### Blog
 * [Diem: The Path Forward](https://developers.diem.com/blog/2019/06/18/the-path-forward/)
