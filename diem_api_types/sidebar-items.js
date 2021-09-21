@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["MoveResourceType",""],["MoveTypeTag",""],["MoveValue",""]],"struct":[["Address",""],["Error",""],["HexEncodedBytes",""],["LedgerInfo",""],["MoveResource",""],["MoveStructTag",""],["MoveStructValue",""],["U128",""],["U64",""]]});

@@ -1,0 +1,169 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `state-sync/storage-service/types/src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><script src="../../crates.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../storage_service_types/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1"> 1</span>
+<span id="2"> 2</span>
+<span id="3"> 3</span>
+<span id="4"> 4</span>
+<span id="5"> 5</span>
+<span id="6"> 6</span>
+<span id="7"> 7</span>
+<span id="8"> 8</span>
+<span id="9"> 9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+</pre><pre class="rust">
+<span class="comment">// Copyright (c) The Diem Core Contributors</span>
+<span class="comment">// SPDX-License-Identifier: Apache-2.0</span>
+
+<span class="attribute">#![<span class="ident">forbid</span>(<span class="ident">unsafe_code</span>)]</span>
+
+<span class="kw">use</span> <span class="ident">diem_types</span>::{<span class="ident">epoch_change::EpochChangeProof</span>, <span class="ident">transaction::TransactionListWithProof</span>};
+
+<span class="doccomment">/// A storage service request.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">StorageServiceRequest</span> {
+    <span class="ident">GetEpochEndingLedgerInfos</span>(<span class="ident">EpochEndingLedgerInfoRequest</span>), <span class="comment">// Fetches a list of epoch ending ledger infos</span>
+    <span class="ident">GetServerProtocolVersion</span>, <span class="comment">// Fetches the protocol version run by the server</span>
+    <span class="ident">GetStorageServerSummary</span>,  <span class="comment">// Fetches a summary of the storage server state</span>
+    <span class="ident">GetTransactionsWithProof</span>(<span class="ident">TransactionsWithProofRequest</span>), <span class="comment">// Fetches a list of transactions with a proof</span>
+}
+
+<span class="doccomment">/// A storage service response.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">StorageServiceResponse</span> {
+    <span class="ident">EpochEndingLedgerInfos</span>(<span class="ident">EpochChangeProof</span>),
+    <span class="ident">ServerProtocolVersion</span>(<span class="ident">ServerProtocolVersion</span>),
+    <span class="ident">StorageServiceError</span>(<span class="ident">StorageServiceError</span>),
+    <span class="ident">StorageServerSummary</span>(<span class="ident">StorageServerSummary</span>),
+    <span class="ident">TransactionsWithProof</span>(<span class="ident">TransactionListWithProof</span>),
+}
+
+<span class="doccomment">/// A storage service request for fetching a transaction list with a</span>
+<span class="doccomment">/// corresponding proof.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">TransactionsWithProofRequest</span> {
+    <span class="kw">pub</span> <span class="ident">proof_version</span>: <span class="ident">u64</span>, <span class="comment">// The version the proof should be relative to</span>
+    <span class="kw">pub</span> <span class="ident">start_version</span>: <span class="ident">u64</span>, <span class="comment">// The starting version of the transaction list</span>
+    <span class="kw">pub</span> <span class="ident">expected_num_transactions</span>: <span class="ident">u64</span>, <span class="comment">// Expected number of transactions in the list</span>
+    <span class="kw">pub</span> <span class="ident">include_events</span>: <span class="ident">bool</span>, <span class="comment">// Whether or not to include events in the response</span>
+}
+
+<span class="doccomment">/// A storage service request for fetching a list of epoch ending ledger infos.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EpochEndingLedgerInfoRequest</span> {
+    <span class="kw">pub</span> <span class="ident">start_epoch</span>: <span class="ident">u64</span>,
+    <span class="kw">pub</span> <span class="ident">expected_end_epoch</span>: <span class="ident">u64</span>,
+}
+
+<span class="doccomment">/// A storage service error that can be returned to the client on a failure</span>
+<span class="doccomment">/// to process a service request.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">StorageServiceError</span> {
+    <span class="ident">InternalError</span>,
+}
+
+<span class="doccomment">/// The protocol version run by this server. Clients request this first to</span>
+<span class="doccomment">/// identify what API calls and data requests the server supports.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ServerProtocolVersion</span> {
+    <span class="kw">pub</span> <span class="ident">protocol_version</span>: <span class="ident">u64</span>, <span class="comment">// The storage server version run by this instance.</span>
+}
+
+<span class="doccomment">/// A storage server summary, containing a summary of the information held</span>
+<span class="doccomment">/// by the corresponding server instance. This is useful for identifying the</span>
+<span class="doccomment">/// data that a server instance can provide, as well as relevant metadata.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">StorageServerSummary</span> {
+    <span class="kw">pub</span> <span class="ident">protocol_metadata</span>: <span class="ident">ProtocolMetadata</span>,
+    <span class="kw">pub</span> <span class="ident">data_summary</span>: <span class="ident">DataSummary</span>,
+}
+
+<span class="doccomment">/// A summary of the protocol metadata for the storage service instance, such as</span>
+<span class="doccomment">/// the maximum chunk sizes supported for different requests.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ProtocolMetadata</span> {
+    <span class="kw">pub</span> <span class="ident">max_transaction_chunk_size</span>: <span class="ident">u64</span>, <span class="comment">// The max number of transaction the server can return in a single chunk</span>
+}
+
+<span class="doccomment">/// A summary of the data actually held by the storage service instance.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">DataSummary</span> {
+    <span class="kw">pub</span> <span class="ident">highest_transaction_version</span>: <span class="ident">u64</span>, <span class="comment">// The highest transaction version currently synced</span>
+    <span class="kw">pub</span> <span class="ident">lowest_transaction_version</span>: <span class="ident">u64</span>,  <span class="comment">// The lowest transaction version currently stored</span>
+
+    <span class="kw">pub</span> <span class="ident">highest_epoch</span>: <span class="ident">u64</span>, <span class="comment">// The highest epoch currently synced</span>
+    <span class="kw">pub</span> <span class="ident">lowest_epoch</span>: <span class="ident">u64</span>,  <span class="comment">// The lowest epoch currently stored</span>
+}
+</pre></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="storage_service_types" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script></body></html>

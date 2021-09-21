@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["MOVE_EXTENSION",""]],"fn":[["build_move_sources","TODO: remove this code and use Move package manager to build sources when it is available"],["generate_validator_config",""]],"mod":[["release",""],["utils",""]]});
