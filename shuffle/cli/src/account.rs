@@ -79,12 +79,6 @@ pub fn handle(project_dir: PathBuf, account_key_path: Option<PathBuf>, random : 
         ),
     );
     send(&client, create_new_account_txn)?;
-    println!("Successfully created account {}", new_account.address());
-    println!(
-        "Private key: {}",
-        ::hex::encode(new_account.private_key().to_bytes())
-    );
-    println!("Public key: {}", new_account.public_key());
-
+    println!("Success!");
     Ok(())
 }
