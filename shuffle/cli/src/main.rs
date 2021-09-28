@@ -7,12 +7,14 @@ use structopt::StructOpt;
 
 mod new;
 mod node;
+mod account;
 
 pub fn main() -> Result<()> {
     let subcommand = Subcommand::from_args();
     match subcommand {
         Subcommand::New { blockchain, path } => new::handle(blockchain, path),
         Subcommand::Node { project_path } => node::handle(project_path.as_path()),
+        Subcommand::Account { project_path } => account::handle(project_path),
     }
 }
 
@@ -30,4 +32,6 @@ pub enum Subcommand {
     },
     #[structopt(about = "Runs a local devnet with prefunded accounts")]
     Node { project_path: PathBuf },
+    #[structopt(name = "account-r", about = "Creates a random account with private/public key pair on chain")]
+    Account { project_path: PathBuf },
 }
