@@ -83,7 +83,7 @@ fn main() {
             helpers::exit_success_with_data(generate_signed_txn(g));
         }
         Command::GenerateTestEd25519Keypair { seed } => {
-            helpers::exit_success_with_data(generate_key_pair(seed));
+            helpers::exit_success_with_data(helpers::generate_key_pair(seed));
         }
         Command::VerifyEd25519Signature => {
             let input = helpers::read_stdin();
@@ -296,41 +296,6 @@ fn generate_signed_txn(request: GenerateSignedTxnRequest) -> GenerateSignedTxnRe
     }
 }
 
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-struct GenerateKeypairResponse {
-    pub private_key: String,
-    pub public_key: String,
-    pub diem_auth_key: String,
-    pub diem_account_address: String,
-}
-
-fn generate_key_pair(seed: Option<u64>) -> GenerateKeypairResponse {
-    let mut rng = StdRng::seed_from_u64(seed.unwrap_or_else(rand::random));
-    let keypair: KeyPair<Ed25519PrivateKey, Ed25519PublicKey> =
-        Ed25519PrivateKey::generate(&mut rng).into();
-    let diem_auth_key = AuthenticationKey::ed25519(&keypair.public_key);
-    let diem_account_address: String = diem_auth_key.derived_address().to_string();
-    let diem_auth_key: String = diem_auth_key.to_string();
-    GenerateKeypairResponse {
-        private_key: keypair
-            .private_key
-            .to_encoded_string()
-            .map_err(|err| {
-                helpers::exit_with_error(format!("Failed to encode private key : {}", err))
-            })
-            .unwrap(),
-        public_key: keypair
-            .public_key
-            .to_encoded_string()
-            .map_err(|err| {
-                helpers::exit_with_error(format!("Failed to encode public key : {}", err))
-            })
-            .unwrap(),
-        diem_auth_key,
-        diem_account_address,
-    }
-}
 
 ///////////////////////////
 // Sign a RawTransaction //

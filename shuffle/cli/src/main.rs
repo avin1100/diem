@@ -10,6 +10,7 @@ mod deploy;
 mod new;
 mod node;
 mod utils;
+mod rand_account;
 
 pub fn main() -> Result<()> {
     let subcommand = Subcommand::from_args();
@@ -24,6 +25,7 @@ pub fn main() -> Result<()> {
             project_path,
             account_key_path,
         } => account::handle(project_path, account_key_path),
+        Subcommand::RandAccount { project_path } => rand_account::handle(project_path),
     }
 }
 
@@ -51,4 +53,6 @@ pub enum Subcommand {
         project_path: PathBuf,
         account_key_path: PathBuf,
     },
+    #[structopt(name = "account-r", about = "Creates a random account with private/public key pair on chain")]
+    RandAccount { project_path: PathBuf },
 }
