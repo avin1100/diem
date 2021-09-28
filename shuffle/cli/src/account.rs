@@ -17,13 +17,18 @@ use generate_key::load_key;
 use shuffle_transaction_builder::framework::encode_create_parent_vasp_account_script_function;
 use std::path::PathBuf;
 
-pub fn handle(project_dir: PathBuf, account_key_path: PathBuf) -> Result<()> {
+pub fn handle(project_dir: PathBuf, account_key_path: Option<PathBuf>, random : bool) -> Result<()> {
     let config_path = project_dir.join("nodeconfig/0").join("node.yaml");
     let config = NodeConfig::load(&config_path)
         .with_context(|| format!("Failed to load NodeConfig from file: {:?}", config_path))?;
     let root_key_path = project_dir.join("nodeconfig").join("mint.key");
     let root_account_key = load_key(root_key_path);
-    let new_account_key = load_key(account_key_path);
+    let new_account_key;
+    if random {
+        new_account_key = generate_key::generate_key();
+    } else {
+        new_account_key = load_key(account_key_path.unwrap());
+    }
     let json_rpc_url = format!("http://0.0.0.0:{}", config.json_rpc.address.port());
     println!("Connecting to {}...", json_rpc_url);
 
