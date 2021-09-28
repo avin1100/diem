@@ -1,5 +1,6 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
+
 use crate::utils::send;
 use anyhow::{Context, Result};
 use diem_config::config::NodeConfig;
@@ -78,6 +79,12 @@ pub fn handle(project_dir: PathBuf, account_key_path: Option<PathBuf>, random : 
         ),
     );
     send(&client, create_new_account_txn)?;
-    println!("Success!");
+    println!("Successfully created account {}", new_account.address());
+    println!(
+        "Private key: {}",
+        ::hex::encode(new_account.private_key().to_bytes())
+    );
+    println!("Public key: {}", new_account.public_key());
+
     Ok(())
 }
