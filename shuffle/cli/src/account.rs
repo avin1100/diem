@@ -1,7 +1,11 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+<<<<<<< HEAD
 use crate::shared::{get_home_path, send, Home};
+=======
+use crate::shared::{get_nodeconfig_path, get_root_key_path, get_shuffle_dir, send};
+>>>>>>> 3a9a8d5d5 (added common paths to shared.rs)
 use anyhow::{anyhow, Context, Result};
 use diem_config::config::NodeConfig;
 use diem_crypto::PrivateKey;
