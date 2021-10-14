@@ -1669,7 +1669,7 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.14.0",
  "tracing",
- "ureq",
+ "ureq 1.5.4",
  "winapi 0.3.9",
 ]
 
@@ -1940,7 +1940,7 @@ dependencies = [
  "stats_alloc",
  "storage-interface",
  "structopt 0.3.21",
- "ureq",
+ "ureq 1.5.4",
 ]
 
 [[package]]
@@ -1983,7 +1983,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "ureq",
+ "ureq 1.5.4",
 ]
 
 [[package]]
@@ -2471,7 +2471,7 @@ dependencies = [
  "diem-logger",
  "diem-metrics-core",
  "diem-workspace-hack",
- "ureq",
+ "ureq 1.5.4",
 ]
 
 [[package]]
@@ -2710,7 +2710,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "ureq",
+ "ureq 1.5.4",
 ]
 
 [[package]]
@@ -7678,6 +7678,7 @@ dependencies = [
  "tempfile",
  "toml",
  "transaction-builder-generator",
+ "ureq 2.2.0",
 ]
 
 [[package]]
@@ -9080,6 +9081,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ureq"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3131cd6cb18488da91da1d10ed31e966f453c06b65bf010d35638456976a3fd7"
+dependencies = [
+ "base64",
+ "chunked_transfer",
+ "log",
+ "once_cell",
+ "rustls",
+ "url",
+ "webpki",
+ "webpki-roots",
+]
+
+[[package]]
 name = "url"
 version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9352,6 +9369,15 @@ checksum = "b8e38c0608262c46d4a56202ebabdeb094cef7e560ca7a226c6bf055188aa4ea"
 dependencies = [
  "ring",
  "untrusted",
+]
+
+[[package]]
+name = "webpki-roots"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aabe153544e473b775453675851ecc86863d2a81d786d741f6b76778f2a48940"
+dependencies = [
+ "webpki",
 ]
 
 [[package]]

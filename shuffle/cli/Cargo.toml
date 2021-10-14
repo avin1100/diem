@@ -20,6 +20,7 @@ rand = "0.8.4"
 serde = { version = "1.0.124", features = ["derive"] }
 structopt = "0.3.21"
 toml = "0.5.8"
+ureq = "2.2.0"
 
 abigen = { path = "../../language/move-prover/abigen" }
 diemdb = { path = "../../storage/diemdb" }

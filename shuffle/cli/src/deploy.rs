@@ -85,8 +85,14 @@ pub fn send_module_transaction(
             let publish_txn = account.sign_with_transaction_builder(
                 factory.payload(TransactionPayload::Module(Module::new(binary))),
             );
-
-            send(client, publish_txn)?;
+            // todo: all below comment doesnt work
+            // let bytes = bcs::to_bytes(&publish_txn)?;
+            // println!("{:?}", bytes);
+            // ureq::post("http://127.0.0.1:8081")
+            //     .set("Content-Type", "application/vnd.bcs+signed_transaction")
+            //     .send_bytes(&*bytes);
+            send(&client, publish_txn)?;
+            // send(client, publish_txn)?;
         } else {
             println!("Skipping Module: {}", module_id);
         }
