@@ -19,7 +19,7 @@ pub fn main() -> Result<()> {
         Subcommand::New { blockchain, path } => new::handle(blockchain, path),
         Subcommand::Node {} => node::handle(),
         Subcommand::Deploy { project_path } => deploy::handle(project_path.as_path()),
-        Subcommand::Account {} => account::handle(),
+        Subcommand::Account { root } => account::handle(root),
         Subcommand::Console { project_path } => console::handle(project_path.as_path()),
         Subcommand::Test { project_path } => test::handle(project_path.as_path()),
     }
@@ -42,7 +42,10 @@ pub enum Subcommand {
     #[structopt(about = "Publishes a move module under an account")]
     Deploy { project_path: PathBuf },
     #[structopt(about = "Creates new account with randomly generated private/public key")]
-    Account {},
+    Account {
+        #[structopt(short, long, help = "Creates account from mint.key passed in by user")]
+        root: Option<PathBuf>,
+    },
     #[structopt(about = "Starts a REPL for onchain inspection")]
     Console { project_path: PathBuf },
     #[structopt(about = "Runs end to end .ts tests")]
