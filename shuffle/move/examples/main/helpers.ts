@@ -8,19 +8,19 @@ import { ListTuple, uint8 } from "./generated/serde/types.ts";
 import { createHash } from "https://deno.land/std@0.77.0/hash/mod.ts";
 
 export function newRawTransaction(
-  addressStr: string,
-  payload: DiemTypes.TransactionPayloadVariantScript,
-  sequenceNumber: number,
+    addressStr: string,
+    payload: DiemTypes.TransactionPayloadVariantScript,
+    sequenceNumber: number,
 ): DiemTypes.RawTransaction {
   return new DiemTypes.RawTransaction(
-    hexToAccountAddress(addressStr),
-    BigInt(sequenceNumber),
-    payload, // txn payload
-    BigInt(1000000), // max gas amount
-    BigInt(0), // gas_unit_price
-    "XUS", // currency
-    BigInt(99999999999), // expiration_timestamp_secs
-    new DiemTypes.ChainId(4), // chain id, hardcoded to test
+      hexToAccountAddress(addressStr),
+      BigInt(sequenceNumber),
+      payload, // txn payload
+      BigInt(1000000), // max gas amount
+      BigInt(0), // gas_unit_price
+      "XUS", // currency
+      BigInt(99999999999), // expiration_timestamp_secs
+      new DiemTypes.ChainId(4), // chain id, hardcoded to test
   );
 }
 
@@ -32,7 +32,7 @@ export function hashPrefix(name: string): Uint8Array {
 }
 
 export function generateSigningMessage(
-  rawTxn: DiemTypes.RawTransaction,
+    rawTxn: DiemTypes.RawTransaction,
 ): Uint8Array {
   const bcsSerializer = new BcsSerializer();
   rawTxn.serialize(bcsSerializer);
@@ -43,9 +43,9 @@ export function generateSigningMessage(
 }
 
 export async function newSignedTransaction(
-  privateKeyBytes: Uint8Array,
-  rawTxn: DiemTypes.RawTransaction,
-  signingMsg: Uint8Array,
+    privateKeyBytes: Uint8Array,
+    rawTxn: DiemTypes.RawTransaction,
+    signingMsg: Uint8Array,
 ): Promise<string> {
   const publicKey = await ed.getPublicKey(privateKeyBytes);
 
@@ -53,14 +53,35 @@ export async function newSignedTransaction(
   const signature = new DiemTypes.Ed25519Signature(signatureTmp);
 
   const txnAuthenticator = new DiemTypes.TransactionAuthenticatorVariantEd25519(
-    new DiemTypes.Ed25519PublicKey(publicKey),
-    signature,
+      new DiemTypes.Ed25519PublicKey(publicKey),
+      signature,
   );
 
   const signedTxn = new DiemTypes.SignedTransaction(rawTxn, txnAuthenticator);
   const signedTxnSerializer = new BcsSerializer();
   signedTxn.serialize(signedTxnSerializer);
   return bufferToHex(signedTxnSerializer.getBytes());
+}
+
+export async function newSignedTransactionBytes(
+    privateKeyBytes: Uint8Array,
+    rawTxn: DiemTypes.RawTransaction,
+    signingMsg: Uint8Array,
+): Promise<any> {
+  const publicKey = await ed.getPublicKey(privateKeyBytes);
+
+  const signatureTmp = await ed.sign(signingMsg, privateKeyBytes);
+  const signature = new DiemTypes.Ed25519Signature(signatureTmp);
+
+  const txnAuthenticator = new DiemTypes.TransactionAuthenticatorVariantEd25519(
+      new DiemTypes.Ed25519PublicKey(publicKey),
+      signature,
+  );
+
+  const signedTxn = new DiemTypes.SignedTransaction(rawTxn, txnAuthenticator);
+  const signedTxnSerializer = new BcsSerializer();
+  signedTxn.serialize(signedTxnSerializer);
+  return signedTxnSerializer.getBytes();
 }
 
 export function hexToAccountAddress(hex: string): DiemTypes.AccountAddress {
@@ -77,8 +98,8 @@ export function hexToAccountAddress(hex: string): DiemTypes.AccountAddress {
 // deno-lint-ignore no-explicit-any
 export function bufferToHex(buffer: any) {
   return [...new Uint8Array(buffer)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
 }
 
 function appendBuffer(buffer1: Uint8Array, buffer2: Uint8Array): Uint8Array {
