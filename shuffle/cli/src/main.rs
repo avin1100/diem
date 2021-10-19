@@ -13,6 +13,7 @@ mod new;
 mod node;
 mod shared;
 mod test;
+mod transactions;
 
 pub fn main() -> Result<()> {
     let subcommand = Subcommand::from_args();
@@ -30,6 +31,7 @@ pub fn main() -> Result<()> {
             console::handle(&normalized_project_path(project_path)?)
         }
         Subcommand::Test { project_path } => test::handle(&normalized_project_path(project_path)?),
+        Subcommand::Transactions { network } => transactions::handle(network),
     }
 }
 
@@ -68,6 +70,11 @@ pub enum Subcommand {
     Test {
         #[structopt(short, long)]
         project_path: Option<PathBuf>,
+    },
+    #[structopt(about = "Runs end to end .ts tests")]
+    Transactions {
+        #[structopt(short, long)]
+        network: String,
     },
 }
 
