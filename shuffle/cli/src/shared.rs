@@ -131,6 +131,10 @@ impl Home {
         &self.latest_path
     }
 
+    pub fn get_latest_address_path(&self) -> &Path {
+        &self.latest_address_path
+    }
+
     pub fn get_latest_key_path(&self) -> &Path {
         &self.latest_key_path
     }
@@ -467,5 +471,13 @@ mod test {
         let home = Home::new(dir.path()).unwrap();
         let correct_dir = dir.path().join(".shuffle/accounts/latest/dev.key");
         assert_eq!(correct_dir, home.get_latest_key_path());
+    }
+
+    #[test]
+    fn test_home_get_latest_address_path() {
+        let dir = tempdir().unwrap();
+        let home = Home::new(dir.path()).unwrap();
+        let correct_dir = dir.path().join(".shuffle/accounts/latest/address");
+        assert_eq!(correct_dir, home.get_latest_address_path());
     }
 }
