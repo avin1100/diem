@@ -13,7 +13,7 @@ use shared::Home;
 use std::{collections::HashMap, path::Path, process::Command};
 
 pub fn handle(project_path: &Path) -> Result<()> {
-    let _config = shared::read_config(project_path)?;
+    let shuffle_config = shared::read_config(project_path)?;
     shared::generate_typescript_libraries(project_path)?;
     let home = Home::new(shared::get_home_path().as_path())?;
 
@@ -30,7 +30,7 @@ pub fn handle(project_path: &Path) -> Result<()> {
 
     let mut new_account = create_test_account(&client, &home, &factory)?;
     create_receiver_account(&client, &home, &factory)?;
-    send_module_transaction(&client, &mut new_account, project_path, &factory)?;
+    send_module_transaction(&client, &mut new_account, project_path, &factory, shuffle_config.get_network())?;
     run_deno_test(project_path, &config)
 }
 
@@ -72,6 +72,7 @@ fn send_module_transaction(
     new_account: &mut LocalAccount,
     project_path: &Path,
     factory: &TransactionFactory,
+    network: &str
 ) -> Result<()> {
     let account_seq_num = client
         .get_account(new_account.address())?
@@ -85,8 +86,8 @@ fn send_module_transaction(
     );
 
     let compiled_package = shared::build_move_packages(project_path)?;
-    deploy::send_module_transaction(&compiled_package, client, new_account, factory)?;
-    deploy::check_module_exists(client, new_account)
+    deploy::send_module_transaction(&compiled_package, new_account, factory, network)
+    // deploy::check_module_exists(client, new_account)
 }
 
 // Run shuffle test using deno

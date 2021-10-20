@@ -1,7 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::shared::{build_move_packages, get_shuffle_dir, send};
+use crate::shared::{build_move_packages, get_shuffle_dir, read_config};
 use anyhow::{anyhow, Result};
 use diem_crypto::PrivateKey;
 use diem_sdk::{
@@ -13,16 +13,17 @@ use diem_sdk::{
     },
 };
 use diem_types::{
-    account_state::AccountState, account_state_blob::AccountStateBlob, chain_id::ChainId,
+    chain_id::ChainId,
     transaction::authenticator::AuthenticationKey,
 };
 use generate_key::load_key;
-use move_binary_format::{file_format::CompiledModule, normalized};
 use move_package::compilation::compiled_package::CompiledPackage;
-use std::{convert::TryFrom, path::Path};
+use std::{path::Path};
 
 /// Deploys shuffle's main Move Package to the sender's address.
 pub fn handle(project_path: &Path) -> Result<()> {
+    let config = read_config(project_path)?;
+
     let account_key_path = get_shuffle_dir()
         .join("accounts")
         .join("latest")
@@ -33,15 +34,16 @@ pub fn handle(project_path: &Path) -> Result<()> {
         ));
     }
     let compiled_package = build_move_packages(project_path)?;
-    publish_packages_as_transaction(&account_key_path, compiled_package)
+    publish_packages_as_transaction(&account_key_path, compiled_package, config.get_network())
 }
 
 fn publish_packages_as_transaction(
     account_key_path: &Path,
     compiled_package: CompiledPackage,
+    network: &str
 ) -> Result<()> {
     let new_account_key = load_key(account_key_path);
-    let json_rpc_url = format!("http://0.0.0.0:{}", 8080); // TODO: Hardcoded to local devnet
+    let json_rpc_url = format!("http://0.0.0.0:{}", 8080); // TODO: When account transaction API lands, use network arg here
     let factory = TransactionFactory::new(ChainId::test());
     println!("Connecting to {}", json_rpc_url);
 
@@ -62,15 +64,16 @@ fn publish_packages_as_transaction(
         .ok_or_else(|| anyhow::anyhow!("missing AccountView"))?
         .sequence_number;
     let mut new_account = LocalAccount::new(derived_address, new_account_key, seq_number);
-    send_module_transaction(&compiled_package, &client, &mut new_account, &factory)?;
-    check_module_exists(&client, &new_account)
+    send_module_transaction(&compiled_package, &mut new_account, &factory, network)?;
+    Ok(())
+
 }
 
 pub fn send_module_transaction(
     compiled_package: &CompiledPackage,
-    client: &BlockingClient,
     account: &mut LocalAccount,
     factory: &TransactionFactory,
+    network: &str
 ) -> Result<()> {
     for module in compiled_package
         .transitive_compiled_modules()
@@ -85,41 +88,39 @@ pub fn send_module_transaction(
             let publish_txn = account.sign_with_transaction_builder(
                 factory.payload(TransactionPayload::Module(Module::new(binary))),
             );
-            // todo: all below comment doesnt work
-            // let bytes = bcs::to_bytes(&publish_txn)?;
-            // println!("{:?}", bytes);
-            // ureq::post("http://127.0.0.1:8081")
-            //     .set("Content-Type", "application/vnd.bcs+signed_transaction")
-            //     .send_bytes(&*bytes);
-            send(&client, publish_txn)?;
-            // send(client, publish_txn)?;
+            let bytes = bcs::to_bytes(&publish_txn)?;
+            let hash = send_txn(bytes, network)?;
+            if !confirm_txn_executed(hash, network)? {
+                return Err(anyhow!(
+                    format!("Transaction wasn't executed: {:?}", publish_txn)
+                ));
+            }
+
         } else {
             println!("Skipping Module: {}", module_id);
         }
     }
+
     println!("Success!");
     Ok(())
 }
 
-pub fn check_module_exists(client: &BlockingClient, account: &LocalAccount) -> Result<()> {
-    let account_state_blob: AccountStateBlob = {
-        let blob = client
-            .get_account_state_with_proof(account.address(), None, None)?
-            .into_inner()
-            .blob
-            .ok_or_else(|| anyhow::anyhow!("missing account state blob"))?;
-        bcs::from_bytes(&blob)?
-    };
-    let account_state = AccountState::try_from(&account_state_blob)?;
-    let mut modules = vec![];
-    for module_bytes in account_state.get_modules() {
-        modules.push(normalized::Module::new(
-            &CompiledModule::deserialize(module_bytes)
-                .map_err(|e| anyhow!("Failure deserializing module: {:?}", e))?,
-        ));
-    }
-    println!("move modules length: {}", modules.len());
-    println!("move modules name: {}", modules[0].name);
+pub fn send_txn(txn_bytes : Vec<u8>, network : &str) -> Result<String> {
+    let path = format!("http://{}/transactions", network);
+    let resp = ureq::post(path.as_str())
+        .set("Content-Type", "application/vnd.bcs+signed_transaction")
+        .send_bytes(&*txn_bytes)?;
+    let json : serde_json::Value = resp.into_json()?;
 
-    Ok(())
+    let hash = json["hash"].as_str().unwrap();
+    Ok(hash.to_string())
+}
+
+pub fn confirm_txn_executed(hash : String, network: &str) -> Result<bool> {
+    let path = format!("http://{}/transactions/{}", network, hash);
+    let resp = ureq::get(path.as_str()).call()?;
+    if resp.status() == 200 {
+        return Ok(true);
+    }
+    Ok(false)
 }

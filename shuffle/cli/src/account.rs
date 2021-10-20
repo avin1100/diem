@@ -18,7 +18,6 @@ use diem_types::{
 use generate_key::load_key;
 use shuffle_transaction_builder::framework::encode_create_parent_vasp_account_script_function;
 use std::{io, path::Path};
-use ureq;
 
 // Creates new account from randomly generated private/public key pair.
 pub fn handle() -> Result<()> {
