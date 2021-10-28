@@ -63,6 +63,7 @@ tokio-util = { version = "0.6.7", features = ["codec", "compat", "default", "fut
 toml = { version = "0.5.8", features = ["default"] }
 tracing = { version = "0.1.26", features = ["attributes", "default", "log", "std", "tracing-attributes"] }
 tracing-core = { version = "0.1.18", features = ["default", "lazy_static", "std"] }
+ureq = { version = "1.5.4", features = ["charset", "cookie", "cookie_store", "cookies", "default", "encoding", "json", "native-tls", "rustls", "serde", "serde_json", "tls", "webpki", "webpki-roots"] }
 url = { version = "2.2.2", default-features = false, features = ["serde"] }
 warp = { version = "0.3.0", features = ["default", "multipart", "tls", "tokio-rustls", "tokio-tungstenite", "websocket"] }
 zeroize = { version = "1.2.0", features = ["alloc", "default", "zeroize_derive"] }
@@ -125,6 +126,7 @@ tokio-util = { version = "0.6.7", features = ["codec", "compat", "default", "fut
 toml = { version = "0.5.8", features = ["default"] }
 tracing = { version = "0.1.26", features = ["attributes", "default", "log", "std", "tracing-attributes"] }
 tracing-core = { version = "0.1.18", features = ["default", "lazy_static", "std"] }
+ureq = { version = "1.5.4", features = ["charset", "cookie", "cookie_store", "cookies", "default", "encoding", "json", "native-tls", "rustls", "serde", "serde_json", "tls", "webpki", "webpki-roots"] }
 url = { version = "2.2.2", default-features = false, features = ["serde"] }
 warp = { version = "0.3.0", features = ["default", "multipart", "tls", "tokio-rustls", "tokio-tungstenite", "websocket"] }
 zeroize = { version = "1.2.0", features = ["alloc", "default", "zeroize_derive"] }
@@ -182,6 +184,7 @@ tokio-util = { version = "0.6.7", features = ["codec", "compat", "default", "fut
 toml = { version = "0.5.8", features = ["default"] }
 tracing = { version = "0.1.26", features = ["attributes", "default", "log", "std", "tracing-attributes"] }
 tracing-core = { version = "0.1.18", features = ["default", "lazy_static", "std"] }
+ureq = { version = "1.5.4", features = ["charset", "cookie", "cookie_store", "cookies", "default", "encoding", "json", "native-tls", "rustls", "serde", "serde_json", "tls", "webpki", "webpki-roots"] }
 url = { version = "2.2.2", default-features = false, features = ["serde"] }
 warp = { version = "0.3.0", features = ["default", "multipart", "tls", "tokio-rustls", "tokio-tungstenite", "websocket"] }
 zeroize = { version = "1.2.0", features = ["alloc", "default", "zeroize_derive"] }
@@ -244,6 +247,7 @@ tokio-util = { version = "0.6.7", features = ["codec", "compat", "default", "fut
 toml = { version = "0.5.8", features = ["default"] }
 tracing = { version = "0.1.26", features = ["attributes", "default", "log", "std", "tracing-attributes"] }
 tracing-core = { version = "0.1.18", features = ["default", "lazy_static", "std"] }
+ureq = { version = "1.5.4", features = ["charset", "cookie", "cookie_store", "cookies", "default", "encoding", "json", "native-tls", "rustls", "serde", "serde_json", "tls", "webpki", "webpki-roots"] }
 url = { version = "2.2.2", default-features = false, features = ["serde"] }
 warp = { version = "0.3.0", features = ["default", "multipart", "tls", "tokio-rustls", "tokio-tungstenite", "websocket"] }
 zeroize = { version = "1.2.0", features = ["alloc", "default", "zeroize_derive"] }
