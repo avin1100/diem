@@ -11,7 +11,7 @@ use std::{
 
 /// Default blockchain configuration
 pub const DEFAULT_BLOCKCHAIN: &str = "goodday";
-pub const DEFAULT_NETWORK: &str = "127.0.0.1:8081";
+pub const DEFAULT_NETWORK: &str = "http://127.0.0.1:8081";
 
 /// Directory of generated transaction builders for helloblockchain.
 const EXAMPLES_DIR: Dir = include_dir!("../move/examples");

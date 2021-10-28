@@ -4,7 +4,6 @@
 use anyhow::{anyhow, Result};
 use std::{fs, path::PathBuf};
 use structopt::StructOpt;
-use url::Url;
 
 mod account;
 mod build;
@@ -26,10 +25,12 @@ pub async fn main() -> Result<()> {
             build::handle(&normalized_project_path(project_path)?)
         }
         Subcommand::Deploy { project_path } => {
-            deploy::handle(&normalized_project_path(project_path)?)
+            deploy::handle(&normalized_project_path(project_path)?).await
         }
         Subcommand::Account { root } => account::handle(root),
-        Subcommand::Test { project_path } => test::handle(&normalized_project_path(project_path)?),
+        Subcommand::Test { project_path } => {
+            test::handle(&normalized_project_path(project_path)?).await
+        }
         Subcommand::Console {
             project_path,
             network,
@@ -43,7 +44,7 @@ pub async fn main() -> Result<()> {
         ),
         Subcommand::Transactions { network, tail, raw } => {
             transactions::handle(
-                normalized_network(network.as_str())?,
+                shared::normalized_network(network.as_str())?,
                 unwrap_nested_boolean_option(tail),
                 unwrap_nested_boolean_option(raw),
             )
@@ -159,13 +160,6 @@ fn normalized_key_path(diem_root_key_path: Option<PathBuf>) -> Result<PathBuf> {
             }
             Ok(PathBuf::from(home.get_latest_key_path()))
         }
-    }
-}
-
-fn normalized_network(network: &str) -> Result<Url> {
-    match Url::parse(network) {
-        Ok(_res) => Ok(Url::parse(network)?),
-        Err(_e) => Ok(Url::parse(("http://".to_owned() + network).as_str())?),
     }
 }
 

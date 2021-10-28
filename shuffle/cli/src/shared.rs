@@ -1,15 +1,17 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 use crate::new::DEFAULT_NETWORK;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use diem_crypto::ed25519::{Ed25519PrivateKey, Ed25519PublicKey};
-use diem_sdk::client::BlockingClient;
+use diem_sdk::client::{AccountAddress, BlockingClient};
 use diem_types::transaction::authenticator::AuthenticationKey;
 use directories::BaseDirs;
 use move_package::compilation::compiled_package::CompiledPackage;
+use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
 use serde_generate as serdegen;
 use serde_generate::SourceInstaller;
+use serde_json::Value;
 use serde_reflection::Registry;
 use std::{
     fs,
@@ -20,9 +22,11 @@ use std::{
 };
 use transaction_builder_generator as buildgen;
 use transaction_builder_generator::SourceInstaller as BuildgenSourceInstaller;
+use url::{ParseError, Url};
 
 pub const MAIN_PKG_PATH: &str = "main";
 const NEW_KEY_FILE_CONTENT: &[u8] = include_bytes!("../new_account.key");
+const DIEM_ACCOUNT_TYPE: &str = "0x1::DiemAccount::DiemAccount";
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
@@ -101,6 +105,88 @@ pub fn get_shuffle_project_path(cwd: &Path) -> Result<PathBuf> {
 // returns ~/.shuffle
 pub fn get_shuffle_dir() -> PathBuf {
     BaseDirs::new().unwrap().home_dir().join(".shuffle")
+}
+
+pub struct DevApiClient {
+    client: Client,
+    network: Url,
+}
+
+// Client that will make GET and POST requests based off of Dev API
+impl DevApiClient {
+    pub fn new(client: Client, network: Url) -> Result<Self> {
+        Ok(Self { client, network })
+    }
+
+    pub async fn get_account_modules(&self, address: AccountAddress) -> Result<Response> {
+        let path = self
+            .network
+            .join(format!("accounts/{}/modules", address.to_hex_literal()).as_str())?;
+        Ok(self.client.get(path.as_str()).send().await?)
+    }
+
+    pub async fn get_transactions_by_hash(&self, hash: &str) -> Result<Response> {
+        let path = self
+            .network
+            .join(format!("transactions/{}", hash).as_str())?;
+        Ok(self.client.get(path.as_str()).send().await?)
+    }
+
+    pub async fn post_transactions(&self, txn_bytes: Vec<u8>) -> Result<Response> {
+        let path = self.network.join("transactions")?;
+        Ok(self
+            .client
+            .post(path.as_str())
+            .header("Content-Type", "application/vnd.bcs+signed_transaction")
+            .body(txn_bytes)
+            .send()
+            .await?)
+    }
+
+    async fn get_account_resources(&self, address: AccountAddress) -> Result<Response> {
+        let path = self
+            .network
+            .join(format!("accounts/{}/resources", address.to_hex_literal()).as_str())?;
+        Ok(self.client.get(path.as_str()).send().await?)
+    }
+
+    pub async fn get_account_sequence_number(&self, address: AccountAddress) -> Result<u64> {
+        let resp = self.get_account_resources(address).await?;
+        let json: Vec<Value> = serde_json::from_str(resp.text().await?.as_str())?;
+        DevApiClient::parse_json_for_account_seq_num(json)
+    }
+
+    fn parse_json_for_account_seq_num(json_objects: Vec<Value>) -> Result<u64> {
+        let mut seq_number_string = "";
+        for object in &json_objects {
+            if object["type"] == DIEM_ACCOUNT_TYPE {
+                seq_number_string = object["value"]["sequence_number"]
+                    .as_str()
+                    .ok_or_else(|| anyhow!("Invalid sequence number string"))?;
+                break;
+            };
+        }
+        let seq_number: u64 = seq_number_string.parse()?;
+        Ok(seq_number)
+    }
+
+    pub async fn get_account_transactions_response(
+        &self,
+        address: AccountAddress,
+        start: u64,
+        limit: u64,
+    ) -> Result<Response> {
+        let path = self
+            .network
+            .join(format!("accounts/{}/transactions", address).as_str())?;
+        Ok(self
+            .client
+            .get(path.as_str())
+            .query(&[("start", start.to_string().as_str())])
+            .query(&[("limit", limit.to_string().as_str())])
+            .send()
+            .await?)
+    }
 }
 
 // Contains all the commonly used paths in shuffle/cli
@@ -307,15 +393,23 @@ fn generate_transaction_builders(pkg_path: &Path, target_dir: &Path) -> Result<(
     Ok(())
 }
 
+pub fn normalized_network(network: &str) -> Result<Url, ParseError> {
+    match Url::parse(network) {
+        Ok(_res) => Ok(Url::parse(network)?),
+        Err(parse_error) => Err(parse_error),
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::{generate_typescript_libraries, get_shuffle_project_path};
     use crate::{
         new,
-        shared::{Config, Home},
+        shared::{Config, DevApiClient, Home},
     };
     use diem_crypto::PrivateKey;
     use diem_infallible::duration_since_epoch;
+    use serde_json::{json, Value};
     use std::fs;
     use tempfile::tempdir;
 
@@ -533,5 +627,31 @@ mod test {
         let new_root_key = generate_key::load_key(home.latest_key_path);
 
         assert_eq!(new_root_key, user_root_key);
+    }
+
+    #[test]
+    fn test_parse_json_for_seq_num() {
+        let value_obj = json!({
+            "type":"0x1::DiemAccount::DiemAccount",
+            "value": {
+                "authentication_key": "0x88cae30f0fea7879708788df9e7c9b7524163afcc6e33b0a9473852e18327fa9",
+                "key_rotation_capability":{
+                    "vec":[{"account_address":"0x24163afcc6e33b0a9473852e18327fa9"}]
+                },
+                "received_events":{
+                    "counter":"0",
+                    "guid":{}
+                },
+                "sent_events":{},
+                "sequence_number":"3",
+                "withdraw_capability":{
+                    "vec":[{"account_address":"0x24163afcc6e33b0a9473852e18327fa9"}]
+                }
+            }
+        });
+
+        let json_obj: Vec<Value> = vec![value_obj];
+        let ret_seq_num = DevApiClient::parse_json_for_account_seq_num(json_obj).unwrap();
+        assert_eq!(ret_seq_num, 3);
     }
 }
