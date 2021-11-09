@@ -7,10 +7,11 @@ import { BcsDeserializer } from "./generated/bcs/mod.ts";
 import { green } from "https://deno.land/x/nanocolors@0.1.12/mod.ts";
 import { isURL } from "https://deno.land/x/is_url@v1.0.1/mod.ts";
 
-export const shuffleDir = String(Deno.env.get("SHUFFLE_HOME"));
+export const shuffleBaseNetworksPath = String(Deno.env.get("SHUFFLE_BASE_NETWORKS_PATH"));
 export const projectPath = String(Deno.env.get("PROJECT_PATH"));
+export const networkName = String(Deno.env.get("SHUFFLE_NETWORK_NAME"))
 export const nodeUrl = getNetworkEndpoint(
-  String(Deno.env.get("SHUFFLE_NETWORK")),
+  String(Deno.env.get("SHUFFLE_NETWORK_DEV_API_URL")),
 );
 export const senderAddress = String(Deno.env.get("SENDER_ADDRESS"));
 export const privateKeyPath = String(Deno.env.get("PRIVATE_KEY_PATH"));
@@ -19,12 +20,14 @@ const privateKeyBytes = bcsToBytes(
 );
 
 export const receiverPrivateKeyPath = path.join(
-  shuffleDir,
-  "accounts/test/dev.key",
+    shuffleBaseNetworksPath,
+    networkName,
+    "accounts/test/dev.key",
 );
 export const receiverAddressPath = path.join(
-  shuffleDir,
-  "accounts/test/address",
+    shuffleBaseNetworksPath,
+    networkName,
+    "accounts/test/address",
 );
 export const receiverAddress = await Deno.readTextFile(receiverAddressPath);
 

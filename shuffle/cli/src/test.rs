@@ -3,10 +3,9 @@
 
 use crate::{
     account, deploy,
-    shared::{self, MAIN_PKG_PATH},
+    shared::{self, normalized_network_name, Home, Network, NetworkHome, MAIN_PKG_PATH},
 };
-use anyhow::{anyhow, Context, Result};
-use diem_config::config::NodeConfig;
+use anyhow::{anyhow, Result};
 use diem_crypto::PrivateKey;
 use diem_sdk::{
     client::{AccountAddress, BlockingClient},
@@ -21,45 +20,42 @@ use shared::Home;
 use std::{
     path::{Path, PathBuf},
     process::Command,
-    str::FromStr,
 };
 use structopt::StructOpt;
 use url::Url;
 
-pub async fn run_e2e_tests(home: &Home, project_path: &Path, network: Url) -> Result<()> {
+pub async fn run_e2e_tests(home: &Home, project_path: &Path, network: Network) -> Result<()> {
+    let network_home = NetworkHome::new(
+        home.get_networks_path()
+            .join(shared::LOCALHOST_NAME)
+            .as_path(),
+    );
     let _config = shared::read_project_config(project_path)?;
     shared::generate_typescript_libraries(project_path)?;
 
-    let config = NodeConfig::load(&home.get_validator_config_path()).with_context(|| {
-        format!(
-            "Failed to load NodeConfig from file: {:?}",
-            home.get_validator_config_path()
-        )
-    })?;
-    println!("Connecting to {}...", network.as_str());
-    let client = BlockingClient::new(network.as_str());
+    println!("Connecting to {}...", network.get_json_rpc_url()?);
+    let client = BlockingClient::new(network.get_json_rpc_url()?.as_str());
     let factory = TransactionFactory::new(ChainId::test());
 
     let test_account = create_account(
         home.get_root_key_path(),
-        home.get_test_key_path(),
+        network_home.get_test_key_path(),
         &client,
         &factory,
     )?;
     let _receiver_account = create_account(
         home.get_root_key_path(),
-        home.get_test_key_path(), // TODO: update to a different key to sender
+        network_home.get_test_key_path(), // TODO: update to a different key to sender
         &client,
         &factory,
     )?;
-    deploy::handle(home, project_path, network.clone()).await?;
+    deploy::handle(&network_home, project_path, network.get_dev_api_url()?).await?;
 
     run_deno_test(
         home,
         project_path,
-        &Url::from_str(config.json_rpc.address.to_string().as_str())?,
         &network,
-        home.get_test_key_path(),
+        network_home.get_test_key_path(),
         test_account.address(),
     )
 }
@@ -70,13 +66,13 @@ fn create_account(
     client: &BlockingClient,
     factory: &TransactionFactory,
 ) -> Result<LocalAccount> {
-    let mut treasury_account = account::get_treasury_account(client, root_key_path);
+    let mut treasury_account = account::get_treasury_account(client, root_key_path)?;
     // TODO: generate random key by using let account_key = generate_key::generate_key();
     let account_key = generate_key::load_key(account_key_path);
     let public_key = account_key.public_key();
     let derived_address = AuthenticationKey::ed25519(&public_key).derived_address();
     let new_account = LocalAccount::new(derived_address, account_key, 0);
-    account::create_account_onchain(&mut treasury_account, &new_account, factory, client)?;
+    account::create_local_account(&mut treasury_account, &new_account, factory, client)?;
     Ok(new_account)
 }
 
@@ -84,8 +80,7 @@ fn create_account(
 pub fn run_deno_test(
     home: &Home,
     project_path: &Path,
-    json_rpc_url: &Url,
-    dev_api_url: &Url,
+    network: &Network,
     key_path: &Path,
     sender_address: AccountAddress,
 ) -> Result<()> {
@@ -95,24 +90,19 @@ pub fn run_deno_test(
         .to_string_lossy()
         .to_string();
 
-    let filtered_envs = shared::get_filtered_envs_for_deno(
-        home,
-        project_path,
-        dev_api_url,
-        key_path,
-        sender_address,
-    );
+    let filtered_envs =
+        shared::get_filtered_envs_for_deno(home, project_path, network, key_path, sender_address)?;
     Command::new("deno")
         .args([
             "test",
             "--unstable",
             tests_path_string.as_str(),
-            "--allow-env=PROJECT_PATH,SHUFFLE_HOME,SHUFFLE_NETWORK,PRIVATE_KEY_PATH,SENDER_ADDRESS",
+            "--allow-env=PROJECT_PATH,SHUFFLE_BASE_NETWORKS_PATH,SHUFFLE_NETWORK_NAME,SHUFFLE_NETWORK_DEV_API_URL,PRIVATE_KEY_PATH,SENDER_ADDRESS",
             "--allow-read",
             format!(
                 "--allow-net={},{}",
-                host_and_port(dev_api_url)?,
-                host_and_port(json_rpc_url)?,
+                host_and_port(&network.get_dev_api_url()?)?,
+                host_and_port(&network.get_json_rpc_url()?)?,
             )
             .as_str(),
         ])
@@ -198,7 +188,9 @@ pub async fn handle(home: &Home, cmd: TestCommand) -> Result<()> {
             run_e2e_tests(
                 home,
                 shared::normalized_project_path(project_path)?.as_path(),
-                shared::normalized_network(home, network)?,
+                home.get_network_struct_from_toml(
+                    normalized_network_name(network.clone()).as_str(),
+                )?,
             )
             .await
         }
@@ -220,7 +212,9 @@ pub async fn handle(home: &Home, cmd: TestCommand) -> Result<()> {
             run_e2e_tests(
                 home,
                 normalized_path.as_path(),
-                shared::normalized_network(home, network)?,
+                home.get_network_struct_from_toml(
+                    normalized_network_name(network.clone()).as_str(),
+                )?,
             )
             .await
         }

@@ -6,9 +6,7 @@ mod helper;
 use crate::helper::ShuffleTestHelper;
 use forge::{AdminContext, AdminTest, Result, Test};
 use smoke_test::scripts_and_modules::enable_open_publishing;
-use std::str::FromStr;
 use tokio::runtime::Runtime;
-use url::Url;
 
 pub struct SetMessageHelloBlockchain;
 
@@ -27,11 +25,9 @@ impl AdminTest for SetMessageHelloBlockchain {
         let helper = ShuffleTestHelper::new()?;
         helper.create_project()?;
 
+        let new_account = ctx.random_account();
         let tc = ctx.chain_info().treasury_compliance_account();
-        helper.create_accounts(tc, client)?;
-
-        let rt = Runtime::new().unwrap();
-        let handle = rt.handle().clone();
+        helper.create_accounts(tc, new_account, factory, client)?;
         handle.block_on(helper.deploy_project(ctx.chain_info().rest_api()))?;
 
         shuffle::test::run_move_unit_tests(&helper.project_path())?;
