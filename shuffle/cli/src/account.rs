@@ -1,7 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::shared::{send_transaction, Home};
+use crate::shared::{send_transaction, Home, Network};
 use anyhow::{anyhow, Context, Result};
 use diem_config::config::NodeConfig;
 use diem_crypto::PrivateKey;
@@ -21,9 +21,60 @@ use std::{
     io,
     path::{Path, PathBuf},
 };
+use diem_sdk::client::FaucetClient;
 
 // Creates new account from randomly generated private/public key pair.
-pub fn handle(home: &Home, root: Option<PathBuf>) -> Result<()> {
+pub async fn handle(home: &Home, root: Option<PathBuf>, network: Network) -> Result<()> {
+
+    let new_account_key = home.generate_key_file()?;
+    let public_key = new_account_key.public_key();
+    home.generate_address_file(&public_key)?;
+    let new_account = LocalAccount::new(
+        AuthenticationKey::ed25519(&public_key).derived_address(),
+        new_account_key,
+        0,
+    );
+
+    create_account_on_network(home, &new_account).await
+    // match network.get_faucet_url().is_empty() {
+    //     true => create_account_on_local(home, root, new_account),
+    //     false => create_account_on_network(new_account)
+    // }
+}
+
+async fn create_account_on_network(home: &Home, new_account: &LocalAccount) -> Result<()> {
+
+    /*
+        if home.get_latest_trove_testnet_path().exists() {
+            wants_another_key()
+        }
+
+        home.generate_shuffle_trove_accounts_path()?;
+        home.generate_shuffle_trove_latest_path()?;
+
+     */
+
+    let new_account_key = home.generate_key_file()?;
+    let public_key = new_account_key.public_key();
+    let testing_new_account = LocalAccount::new(
+        AuthenticationKey::ed25519(&public_key).derived_address(),
+        new_account_key,
+        0,
+    );
+
+    // let faucet_client = FaucetClient::new(network.get_faucet_url().to_string(), network.build_json_rpc_url().to_string());
+    let faucet_client = FaucetClient::new("http://127.0.0.1:8082".to_string(), "http://127.0.0.1:8080".to_string());
+
+    // let x = faucet_client.create_account(testing_new_account.authentication_key(), "XUS");
+    // println!("HERE");
+
+    tokio::task::spawn_blocking(move || faucet_client.create_account(testing_new_account.authentication_key(), "XUS").unwrap()).await.unwrap();
+
+    // faucet_client.create_account(new_account.authentication_key(), "XUS");
+    Ok(())
+}
+
+fn create_account_on_local(home: &Home, root: Option<PathBuf>, new_account: LocalAccount) -> Result<()> {
     if !home.get_shuffle_path().is_dir() {
         return Err(anyhow!(
             "A node hasn't been created yet! Run shuffle node first"
@@ -64,14 +115,14 @@ pub fn handle(home: &Home, root: Option<PathBuf>) -> Result<()> {
     home.generate_shuffle_accounts_path()?;
     home.generate_shuffle_latest_path()?;
 
-    let new_account_key = home.generate_key_file()?;
-    let public_key = new_account_key.public_key();
-    home.generate_address_file(&public_key)?;
-    let new_account = LocalAccount::new(
-        AuthenticationKey::ed25519(&public_key).derived_address(),
-        new_account_key,
-        0,
-    );
+    // let new_account_key = home.generate_key_file()?;
+    // let public_key = new_account_key.public_key();
+    // home.generate_address_file(&public_key)?;
+    // let new_account = LocalAccount::new(
+    //     AuthenticationKey::ed25519(&public_key).derived_address(),
+    //     new_account_key,
+    //     0,
+    // );
 
     // Create a new account.
     create_account_onchain(&mut root_account, &new_account, &factory, &client)?;
@@ -87,31 +138,6 @@ pub fn handle(home: &Home, root: Option<PathBuf>) -> Result<()> {
     );
 
     create_account_onchain(&mut root_account, &test_account, &factory, &client)
-}
-
-pub fn confirm_user_decision(home: &Home) -> bool {
-    let key_path = home.get_latest_key_path();
-    let prev_key = generate_key::load_key(&key_path);
-    println!(
-        "Private Key already exists: {}",
-        ::hex::encode(prev_key.to_bytes())
-    );
-    println!("Are you sure you want to generate a new key? [y/n]");
-
-    let mut user_response = String::new();
-    io::stdin()
-        .read_line(&mut user_response)
-        .expect("Failed to read line");
-    let user_response = user_response.trim().to_owned();
-
-    if user_response != "y" && user_response != "n" {
-        println!("Please restart and enter either y or n");
-        return false;
-    } else if user_response == "n" {
-        return false;
-    }
-
-    true
 }
 
 pub fn get_root_account(client: &BlockingClient, root_key_path: &Path) -> LocalAccount {
@@ -164,4 +190,29 @@ pub fn create_account_onchain(
     );
     println!("Public key: {}", new_account.public_key());
     Ok(())
+}
+
+pub fn confirm_user_decision(home: &Home) -> bool {
+    let key_path = home.get_latest_key_path();
+    let prev_key = generate_key::load_key(&key_path);
+    println!(
+        "Private Key already exists: {}",
+        ::hex::encode(prev_key.to_bytes())
+    );
+    println!("Are you sure you want to generate a new key? [y/n]");
+
+    let mut user_response = String::new();
+    io::stdin()
+        .read_line(&mut user_response)
+        .expect("Failed to read line");
+    let user_response = user_response.trim().to_owned();
+
+    if user_response != "y" && user_response != "n" {
+        println!("Please restart and enter either y or n");
+        return false;
+    } else if user_response == "n" {
+        return false;
+    }
+
+    true
 }

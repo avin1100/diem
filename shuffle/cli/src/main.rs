@@ -9,6 +9,7 @@ use anyhow::{anyhow, Result};
 use diem_types::account_address::AccountAddress;
 use std::{fs, path::PathBuf};
 use structopt::StructOpt;
+use crate::shared::Network;
 
 mod account;
 mod build;
@@ -38,7 +39,7 @@ pub async fn main() -> Result<()> {
             &shared::normalized_project_path(project_path)?,
             shared::normalized_network(&home, network)?,
         ),
-        Subcommand::Account { root } => account::handle(&home, root),
+        Subcommand::Account { root, network } => account::handle(&home, root, shared::Network::default()).await, //get_network_struct_from_input_name(&home, network)?
         Subcommand::Test { cmd } => test::handle(&home, cmd),
         Subcommand::Console {
             project_path,
@@ -101,6 +102,9 @@ pub enum Subcommand {
     Account {
         #[structopt(short, long, help = "Creates account from mint.key passed in by user")]
         root: Option<PathBuf>,
+
+        #[structopt(short, long)]
+        network: Option<String>,
     },
     #[structopt(about = "Starts a REPL for onchain inspection")]
     Console {
@@ -192,3 +196,18 @@ fn unwrap_nested_boolean_option(option: Option<Option<bool>>) -> bool {
         None => false,
     }
 }
+
+// fn get_network_struct_from_input_name(home: &Home, network: Option<String>) -> Result<Network> {
+//     match network {
+//         Some(input) => {
+//
+//             if home.read_networks_toml()?.get_networks().contains_key(input.as_str()) {
+//                 //returns in a Network instead of &Network
+//                 Ok(home.read_networks_toml()?.get_networks().remove(input.as_str()).unwrap())
+//             } else {
+//                 return Err(anyhow!("Please add specified network to the ~/.shuffle/Networks.json"))
+//             }
+//         }
+//         None => Ok(Network::default()),
+//     }
+// }

@@ -25,6 +25,7 @@ use url::Url;
 
 pub const MAIN_PKG_PATH: &str = "main";
 const NEW_KEY_FILE_CONTENT: &[u8] = include_bytes!("../new_account.key");
+
 pub const LOCALHOST_NETWORK_NAME: &str = "localhost";
 pub const LOCALHOST_NETWORK_BASE: &str = "http://127.0.0.1";
 
@@ -327,6 +328,10 @@ impl NetworksConfig {
         }
     }
 
+    pub fn get_networks(&self) -> &BTreeMap<String, Network> {
+        &self.networks
+    }
+
     pub fn url_for(&self, network_name: &str) -> Result<Url> {
         let specified_network = self.networks.get(network_name).ok_or_else(|| {
             anyhow!("Please add specified network to the ~/.shuffle/Networks.json")
@@ -345,6 +350,7 @@ impl NetworksConfig {
 pub struct Network {
     name: String,
     base: String,
+    faucet_url: Option<String>,
     json_rpc_port: u16,
     dev_api_port: u16,
 }
@@ -354,9 +360,31 @@ impl Network {
         Network {
             name: String::from(LOCALHOST_NETWORK_NAME),
             base: String::from(LOCALHOST_NETWORK_BASE),
+            faucet_url: None,
             json_rpc_port: 8080,
             dev_api_port: 8081,
         }
+    }
+
+    pub fn get_faucet_url(&self) -> &str { //todo: ask someone about this vs returning an Option<String> and doing match statement in
+        match &self.faucet_url {
+            Some(url) => url.as_str(),
+            None => ""
+        }
+    }
+
+    // pub fn get_faucet_url(&self) -> Option<String> {
+    //     self.faucet_url
+    // }
+
+    pub fn build_json_rpc_url(&self) -> Result<Url> {
+        Ok(Url::from_str(
+            format!(
+                "{}:{}",
+                self.base, self.json_rpc_port
+            )
+                .as_str(),
+        )?)
     }
 }
 
