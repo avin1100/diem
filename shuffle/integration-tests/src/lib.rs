@@ -27,8 +27,9 @@ impl AdminTest for SetMessageHelloBlockchain {
         let helper = ShuffleTestHelper::new()?;
         helper.create_project()?;
 
+        let new_account = ctx.random_account();
         let tc = ctx.chain_info().treasury_compliance_account();
-        helper.create_accounts(tc, client)?;
+        helper.create_accounts(tc, new_account, factory, client)?;
 
         let rt = Runtime::new().unwrap();
         let handle = rt.handle().clone();
@@ -40,8 +41,8 @@ impl AdminTest for SetMessageHelloBlockchain {
             &helper.project_path(),
             &json_rpc_url,
             &Url::from_str(ctx.chain_info().rest_api())?,
-            helper.home().get_test_key_path(),
-            helper.home().get_test_address()?,
+            helper.network_home().get_test_key_path(),
+            helper.network_home().get_test_address()?,
         )
     }
 }

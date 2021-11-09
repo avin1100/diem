@@ -3,7 +3,7 @@
 
 use crate::{
     account, deploy,
-    shared::{self, MAIN_PKG_PATH},
+    shared::{self, NetworkHome, MAIN_PKG_PATH},
 };
 use anyhow::{anyhow, Context, Result};
 use diem_config::config::NodeConfig;
@@ -26,6 +26,11 @@ use structopt::StructOpt;
 use url::Url;
 
 pub async fn run_e2e_tests(home: &Home, project_path: &Path, network: Url) -> Result<()> {
+    let network_home = NetworkHome::new(
+        home.get_networks_path()
+            .join(shared::LOCALHOST_NAME)
+            .as_path(),
+    );
     let _config = shared::read_project_config(project_path)?;
     shared::generate_typescript_libraries(project_path)?;
 
@@ -39,16 +44,16 @@ pub async fn run_e2e_tests(home: &Home, project_path: &Path, network: Url) -> Re
     let client = BlockingClient::new(network.as_str());
     let factory = TransactionFactory::new(ChainId::test());
 
-    let new_account = create_test_account(home, &client, &factory)?;
-    create_receiver_account(home, &client, &factory)?;
-    deploy::handle(home, project_path, network.clone()).await?;
+    let new_account = create_test_account(home, &network_home, &client, &factory)?;
+    create_receiver_account(home, &network_home, &client, &factory)?;
+    deploy::handle(&network_home, project_path, network.clone()).await?;
 
     run_deno_test(
         home,
         project_path,
         &Url::from_str(config.json_rpc.address.to_string().as_str())?,
         &network,
-        home.get_test_key_path(),
+        network_home.get_test_key_path(),
         new_account.address(),
     )
 }
@@ -56,12 +61,13 @@ pub async fn run_e2e_tests(home: &Home, project_path: &Path, network: Url) -> Re
 // Set up a new test account
 fn create_test_account(
     home: &Home,
+    network_home: &NetworkHome,
     client: &BlockingClient,
     factory: &TransactionFactory,
 ) -> Result<LocalAccount> {
     let mut treasury_account = account::get_treasury_account(client, home.get_root_key_path());
     // TODO: generate random key by using let new_account_key = generate_key::generate_key();
-    let new_account_key = generate_key::load_key(home.get_latest_key_path());
+    let new_account_key = generate_key::load_key(network_home.get_latest_account_key_path());
     let public_key = new_account_key.public_key();
     let derived_address = AuthenticationKey::ed25519(&public_key).derived_address();
     let new_account = LocalAccount::new(derived_address, new_account_key, 0);
@@ -72,11 +78,12 @@ fn create_test_account(
 // Set up a new test account
 fn create_receiver_account(
     home: &Home,
+    network_home: &NetworkHome,
     client: &BlockingClient,
     factory: &TransactionFactory,
 ) -> Result<LocalAccount> {
     let mut treasury_account = account::get_treasury_account(client, home.get_root_key_path());
-    let receiver_account_key = generate_key::load_key(home.get_test_key_path());
+    let receiver_account_key = generate_key::load_key(network_home.get_test_key_path());
     let public_key = receiver_account_key.public_key();
     let address = AuthenticationKey::ed25519(&public_key).derived_address();
     let receiver_account = LocalAccount::new(address, receiver_account_key, 0);
@@ -210,7 +217,7 @@ pub async fn handle(home: &Home, cmd: TestCommand) -> Result<()> {
             run_e2e_tests(
                 home,
                 shared::normalized_project_path(project_path)?.as_path(),
-                shared::normalized_network(home, network)?,
+                shared::normalized_network_url(home, network)?,
             )
             .await
         }
@@ -226,7 +233,7 @@ pub async fn handle(home: &Home, cmd: TestCommand) -> Result<()> {
             run_e2e_tests(
                 home,
                 normalized_path.as_path(),
-                shared::normalized_network(home, network)?,
+                shared::normalized_network_url(home, network)?,
             )
             .await
         }
