@@ -1,6 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::shared::NetworkHome;
 use crate::{
     account, deploy,
     shared::{self, MAIN_PKG_PATH},
@@ -26,6 +27,10 @@ use structopt::StructOpt;
 use url::Url;
 
 pub async fn run_e2e_tests(home: &Home, project_path: &Path, network: Url) -> Result<()> {
+    let network_home = NetworkHome::new(
+        shared::get_shuffle_networks_path().as_path(),
+        String::from(shared::LOCALHOST_NAME),
+    );
     let _config = shared::read_project_config(project_path)?;
     shared::generate_typescript_libraries(project_path)?;
 
@@ -39,15 +44,15 @@ pub async fn run_e2e_tests(home: &Home, project_path: &Path, network: Url) -> Re
     let client = BlockingClient::new(network.as_str());
     let factory = TransactionFactory::new(ChainId::test());
 
-    let new_account = create_test_account(home, &client, &factory)?;
-    create_receiver_account(home, &client, &factory)?;
-    deploy::handle(home, project_path, network.clone()).await?;
+    let new_account = create_test_account(home, &network_home, &client, &factory)?;
+    create_receiver_account(home, &network_home, &client, &factory)?;
+    deploy::handle(&network_home, project_path, network.clone()).await?;
 
     run_deno_test(
         project_path,
         &config,
         &network,
-        home.get_test_key_path(),
+        network_home.get_test_key_path(),
         new_account.address(),
     )
 }
@@ -55,31 +60,33 @@ pub async fn run_e2e_tests(home: &Home, project_path: &Path, network: Url) -> Re
 // Set up a new test account
 fn create_test_account(
     home: &Home,
+    network_home: &NetworkHome,
     client: &BlockingClient,
     factory: &TransactionFactory,
 ) -> Result<LocalAccount> {
     let mut root_account = account::get_root_account(client, home.get_root_key_path());
     // TODO: generate random key by using let new_account_key = generate_key::generate_key();
-    let new_account_key = generate_key::load_key(home.get_latest_key_path());
+    let new_account_key = generate_key::load_key(network_home.get_latest_key_path());
     let public_key = new_account_key.public_key();
     let derived_address = AuthenticationKey::ed25519(&public_key).derived_address();
     let new_account = LocalAccount::new(derived_address, new_account_key, 0);
-    account::create_account_onchain(&mut root_account, &new_account, factory, client)?;
+    account::create_account_on_localhost(&mut root_account, &new_account, factory, client)?;
     Ok(new_account)
 }
 
 // Set up a new test account
 fn create_receiver_account(
     home: &Home,
+    network_home: &NetworkHome,
     client: &BlockingClient,
     factory: &TransactionFactory,
 ) -> Result<LocalAccount> {
     let mut root_account = account::get_root_account(client, home.get_root_key_path());
-    let receiver_account_key = generate_key::load_key(home.get_test_key_path());
+    let receiver_account_key = generate_key::load_key(network_home.get_test_key_path());
     let public_key = receiver_account_key.public_key();
     let address = AuthenticationKey::ed25519(&public_key).derived_address();
     let receiver_account = LocalAccount::new(address, receiver_account_key, 0);
-    account::create_account_onchain(&mut root_account, &receiver_account, factory, client)?;
+    account::create_account_on_localhost(&mut root_account, &receiver_account, factory, client)?;
 
     Ok(receiver_account)
 }
