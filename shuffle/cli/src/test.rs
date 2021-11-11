@@ -64,7 +64,7 @@ fn create_test_account(
     let public_key = new_account_key.public_key();
     let derived_address = AuthenticationKey::ed25519(&public_key).derived_address();
     let new_account = LocalAccount::new(derived_address, new_account_key, 0);
-    account::create_account_onchain(&mut root_account, &new_account, factory, client)?;
+    // account::create_account_onchain(&mut root_account, &new_account, factory, client)?;
     Ok(new_account)
 }
 
@@ -79,7 +79,7 @@ fn create_receiver_account(
     let public_key = receiver_account_key.public_key();
     let address = AuthenticationKey::ed25519(&public_key).derived_address();
     let receiver_account = LocalAccount::new(address, receiver_account_key, 0);
-    account::create_account_onchain(&mut root_account, &receiver_account, factory, client)?;
+    // account::create_account_onchain(&mut root_account, &receiver_account, factory, client)?;
 
     Ok(receiver_account)
 }

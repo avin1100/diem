@@ -1,7 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::shared::{send_transaction, Home};
+use crate::shared::{send_transaction, Home, DevApiClient};
 use anyhow::{anyhow, Context, Result};
 use diem_config::config::NodeConfig;
 use diem_crypto::PrivateKey;
@@ -27,9 +27,11 @@ use std::{
     io,
     path::{Path, PathBuf},
 };
+use url::Url;
+use std::str::FromStr;
 
 // Creates new account from randomly generated private/public key pair.
-pub fn handle(home: &Home, root: Option<PathBuf>) -> Result<()> {
+pub async fn handle(home: &Home, root: Option<PathBuf>) -> Result<()> {
     if !home.get_shuffle_path().is_dir() {
         return Err(anyhow!(
             "A node hasn't been created yet! Run shuffle node first"
@@ -65,7 +67,7 @@ pub fn handle(home: &Home, root: Option<PathBuf>) -> Result<()> {
                 .as_path(),
         )?;
     }
-    let mut root_account = get_root_account(&client, home.get_root_key_path());
+    let mut root_account = get_root_account(&client, home.get_root_key_path()).await?;
 
     home.generate_shuffle_accounts_path()?;
     home.generate_shuffle_latest_path()?;
@@ -80,7 +82,7 @@ pub fn handle(home: &Home, root: Option<PathBuf>) -> Result<()> {
     );
 
     // Create a new account.
-    create_account_onchain(&mut root_account, &new_account, &factory, &client)?;
+    create_account_onchain(&mut root_account, &new_account, &factory, &client).await?;
 
     home.generate_shuffle_test_path()?;
     let test_key = home.generate_testkey_file()?;
@@ -92,7 +94,7 @@ pub fn handle(home: &Home, root: Option<PathBuf>) -> Result<()> {
         0,
     );
 
-    create_account_onchain(&mut root_account, &test_account, &factory, &client)
+    create_account_onchain(&mut root_account, &test_account, &factory, &client).await
 }
 
 pub fn confirm_user_decision(home: &Home) -> bool {
@@ -120,23 +122,22 @@ pub fn confirm_user_decision(home: &Home) -> bool {
     true
 }
 
-pub fn get_root_account(client: &BlockingClient, root_key_path: &Path) -> LocalAccount {
+pub async fn get_root_account(client: &BlockingClient, root_key_path: &Path) -> Result<LocalAccount> {
+    // todo: THIS WORKS
+    let new_client = DevApiClient::new(reqwest::Client::new(), Url::from_str("http://127.0.0.1:8080")?)?;
     let root_account_key = load_key(root_key_path);
-
-    let root_seq_num = client
-        .get_account(account_config::treasury_compliance_account_address())
-        .unwrap()
-        .into_inner()
-        .unwrap()
-        .sequence_number;
-    LocalAccount::new(
+    let root_account_address = AccountAddress::from_hex_literal("0x0000000000000000000000000A550C18")?;
+    let new_seq_num_from_client = new_client.get_account_sequence_number(root_account_address).await?;
+    let ret = LocalAccount::new(
         account_config::treasury_compliance_account_address(),
         root_account_key,
-        root_seq_num,
-    )
+        new_seq_num_from_client,
+    );
+    Ok(ret)
+
 }
 
-pub fn create_account_onchain(
+pub async fn create_account_onchain(
     root_account: &mut LocalAccount,
     new_account: &LocalAccount,
     factory: &TransactionFactory,
@@ -161,7 +162,10 @@ pub fn create_account_onchain(
                 false,
             ),
         ));
-        send_transaction(client, create_new_account_txn)?;
+        let new_client = DevApiClient::new(reqwest::Client::new(), Url::from_str("http://127.0.0.1:8080")?)?;
+        let bytes = bcs::to_bytes(&create_new_account_txn)?;
+        let resp = new_client.post_transactions(bytes).await?;
+        // send_transaction(client, create_new_account_txn)?;
         println!("Successfully created account {}", new_account.address());
     }
     println!(

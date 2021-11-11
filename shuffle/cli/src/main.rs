@@ -41,7 +41,7 @@ pub async fn main() -> Result<()> {
             )
             .await
         }
-        Subcommand::Account { root } => account::handle(&home, root),
+        Subcommand::Account { root } => account::handle(&home, root).await,
         Subcommand::Test { cmd } => test::handle(&home, cmd).await,
         Subcommand::Console {
             project_path,
