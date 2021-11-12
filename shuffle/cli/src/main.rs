@@ -51,7 +51,7 @@ pub async fn main() -> Result<()> {
             root,
             home.read_networks_toml()?
                 .get(normalized_network_name(network).as_str())?,
-        ),
+        ).await,
 
         Subcommand::Test { cmd } => test::handle(&home, cmd).await,
         Subcommand::Console {

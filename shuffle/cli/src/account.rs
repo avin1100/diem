@@ -1,7 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::shared::{send_transaction, Home, Network, NetworkHome, LOCALHOST_NAME};
+use crate::shared::{send_transaction, Home, Network, NetworkHome, LOCALHOST_NAME, TROVE_TESTNET_NETWORK_NAME};
 use anyhow::{anyhow, Context, Result};
 use diem_config::config::NodeConfig;
 use diem_crypto::PrivateKey;
@@ -27,9 +27,12 @@ use std::{
     io,
     path::{Path, PathBuf},
 };
+use url::Url;
+use diem_sdk::client::FaucetClient;
+use std::str::FromStr;
 
 // Creates new account from randomly generated private/public key pair.
-pub fn handle(home: &Home, root: Option<PathBuf>, network: Network) -> Result<()> {
+pub async fn handle(home: &Home, root: Option<PathBuf>, network: Network) -> Result<()> {
     let network_home =
         NetworkHome::new(home.get_networks_path().join(network.get_name()).as_path());
     check_node_deployed_if_localhost_used(home, &network)?;
@@ -42,7 +45,32 @@ pub fn handle(home: &Home, root: Option<PathBuf>, network: Network) -> Result<()
     }
 
     network_home.generate_network_base_path_if_nonexistent()?;
+    network_home.generate_network_accounts_path_if_nonexistent()?;
+    network_home.generate_network_latest_account_path_if_nonexistent()?;
 
+    let new_account = generate_new_account(&network_home)?;
+
+    //creating account onchain based on network provided by user
+    match network.get_name().as_str() {
+        LOCALHOST_NAME => handle_account_creation_on_localhost(home, &network_home, root, &new_account),
+        TROVE_TESTNET_NETWORK_NAME => {
+            create_account_on_network(
+                new_account,
+                &network.get_faucet_url()?,
+                &network.get_dev_api_url()?,
+            )
+                .await
+        }
+        _ => Ok(()),
+    }
+}
+
+fn handle_account_creation_on_localhost(
+    home: &Home,
+    network_home: &NetworkHome,
+    root: Option<PathBuf>,
+    new_account: &LocalAccount,
+) -> Result<()> {
     let config = NodeConfig::load(&home.get_validator_config_path()).with_context(|| {
         format!(
             "Failed to load NodeConfig from file: {:?}",
@@ -58,12 +86,9 @@ pub fn handle(home: &Home, root: Option<PathBuf>, network: Network) -> Result<()
         network_home.save_root_key(input_root_key.as_path())?
     }
 
-    network_home.generate_network_accounts_path_if_nonexistent()?;
-    network_home.generate_network_latest_account_path_if_nonexistent()?;
-
     let mut treasury_account = get_treasury_account(&client, home.get_root_key_path());
-    let new_account = generate_new_account(&network_home)?;
-    create_account_onchain(&mut treasury_account, &new_account, &factory, &client)?;
+    // create_account_onchain(&mut treasury_account, &new_account, &factory, &client)?;
+    create_account_on_network(LocalAccount::new(new_account.address(), generate_key::load_key(network_home.get_latest_account_key_path()), new_account.sequence_number()), &Url::from_str("http://127.0.0.1:8082")?, &Url::from_str("http://127.0.0.1:8080")?);
 
     network_home.generate_shuffle_test_path_if_nonexistent()?;
     let test_account = generate_test_account(&network_home)?;
@@ -191,6 +216,27 @@ pub fn create_account_onchain(
         ::hex::encode(new_account.private_key().to_bytes())
     );
     println!("Public key: {}", new_account.public_key());
+    Ok(())
+}
+
+async fn create_account_on_network(
+    new_account: LocalAccount,
+    faucet_base_url: &Url,
+    json_rpc_url: &Url,
+) -> Result<()> {
+    let faucet_account_creation_endpoint = faucet_base_url.join("accounts")?;
+    let faucet_client = FaucetClient::new(
+        faucet_account_creation_endpoint.to_string(),
+        json_rpc_url.to_string(),
+    );
+    tokio::task::spawn_blocking(move || {
+        faucet_client
+            .create_account(new_account.authentication_key(), "XUS")
+            .unwrap()
+    })
+        .await
+        .unwrap();
+
     Ok(())
 }
 

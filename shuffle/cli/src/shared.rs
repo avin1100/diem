@@ -31,6 +31,7 @@ const NEW_KEY_FILE_CONTENT: &[u8] = include_bytes!("../new_account.key");
 const DIEM_ACCOUNT_TYPE: &str = "0x1::DiemAccount::DiemAccount";
 
 pub const LOCALHOST_NAME: &str = "localhost";
+pub const TROVE_TESTNET_NETWORK_NAME: &str = "trove_testnet";
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
@@ -492,6 +493,18 @@ pub struct Network {
 impl Network {
     pub fn get_name(&self) -> String {
         String::from(&self.name)
+    }
+
+    pub fn get_dev_api_url(&self) -> Result<Url> {
+        Ok(Url::from_str(self.dev_api_url.as_str())?)
+    }
+
+    pub fn get_faucet_url(&self) -> Result<Url> {
+        //todo add test
+        match &self.faucet_url {
+            Some(faucet) => Ok(Url::from_str(faucet.as_str())?),
+            None => Err(anyhow!("This network doesn't have a faucet url")),
+        }
     }
 }
 
@@ -970,5 +983,19 @@ mod test {
         fs::create_dir_all(dir.path().join(".shuffle")).unwrap();
         home.write_default_networks_config_into_toml().unwrap();
         assert_eq!(home.check_networks_toml_exists().is_err(), false);
+    }
+
+    #[test]
+    fn test_get_dev_api_url() {
+        let network_map = NetworksConfig::default().networks;
+        let localhost_correct_url = Url::from_str("http://127.0.0.1:8080").unwrap();
+        assert_eq!(
+            network_map
+                .get("localhost")
+                .unwrap()
+                .get_dev_api_url()
+                .unwrap(),
+            localhost_correct_url
+        );
     }
 }
