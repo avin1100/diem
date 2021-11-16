@@ -1,13 +1,15 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::shared::{send_transaction, Home, Network, NetworkHome, LOCALHOST_NAME};
+use crate::shared::{
+    send_transaction, Home, Network, NetworkHome, LOCALHOST_NAME, TROVE_TESTNET_NETWORK_NAME,
+};
 use anyhow::{anyhow, Result};
 use diem_crypto::PrivateKey;
 
 use diem_infallible::duration_since_epoch;
 use diem_sdk::{
-    client::BlockingClient,
+    client::{BlockingClient, FaucetClient},
     transaction_builder::{Currency, TransactionFactory},
     types::LocalAccount,
 };
@@ -26,9 +28,10 @@ use std::{
     io,
     path::{Path, PathBuf},
 };
+use url::Url;
 
 // Creates new account from randomly generated private/public key pair.
-pub fn handle(home: &Home, root: Option<PathBuf>, network: Network) -> Result<()> {
+pub async fn handle(home: &Home, root: Option<PathBuf>, network: Network) -> Result<()> {
     let network_home =
         NetworkHome::new(home.get_networks_path().join(network.get_name()).as_path());
     check_nodeconfig_exists_if_localhost_used(home, &network)?;
@@ -41,7 +44,39 @@ pub fn handle(home: &Home, root: Option<PathBuf>, network: Network) -> Result<()
     }
 
     network_home.generate_network_base_path_if_nonexistent()?;
+    network_home.generate_network_accounts_path_if_nonexistent()?;
 
+    network_home.generate_network_latest_account_path_if_nonexistent()?;
+    let new_account = generate_new_account(&network_home)?;
+
+    network_home.generate_shuffle_test_path_if_nonexistent()?;
+    let test_account = generate_test_account(&network_home)?;
+
+    //creating account onchain based on network provided by user
+    match network.get_name().as_str() {
+        LOCALHOST_NAME => handle_account_creation_on_localhost(
+            home,
+            &network_home,
+            &network,
+            root,
+            &new_account,
+            &test_account,
+        ),
+        TROVE_TESTNET_NETWORK_NAME => {
+            handle_account_creation_on_network(&network, &new_account, &test_account).await
+        }
+        _ => Ok(()),
+    }
+}
+
+fn handle_account_creation_on_localhost(
+    home: &Home,
+    network_home: &NetworkHome,
+    network: &Network,
+    root: Option<PathBuf>,
+    new_account: &LocalAccount,
+    test_account: &LocalAccount,
+) -> Result<()> {
     println!("Connecting to {}...", network.get_json_rpc_url()?);
     let client = BlockingClient::new(network.get_json_rpc_url()?);
     let factory = TransactionFactory::new(ChainId::test());
@@ -50,16 +85,9 @@ pub fn handle(home: &Home, root: Option<PathBuf>, network: Network) -> Result<()
         network_home.save_root_key(input_root_key.as_path())?
     }
 
-    network_home.generate_network_accounts_path_if_nonexistent()?;
-    network_home.generate_network_latest_account_path_if_nonexistent()?;
-
     let mut treasury_account = get_treasury_account(&client, home.get_root_key_path())?;
-    let new_account = generate_new_account(&network_home)?;
-    create_local_account(&mut treasury_account, &new_account, &factory, &client)?;
-
-    network_home.generate_shuffle_test_path_if_nonexistent()?;
-    let test_account = generate_test_account(&network_home)?;
-    create_local_account(&mut treasury_account, &test_account, &factory, &client)
+    create_local_account(&mut treasury_account, new_account, &factory, &client)?;
+    create_local_account(&mut treasury_account, test_account, &factory, &client)
 }
 
 fn check_nodeconfig_exists_if_localhost_used(home: &Home, network: &Network) -> Result<()> {
@@ -161,7 +189,10 @@ pub fn create_local_account(
         .into_inner()
         .is_some()
     {
-        println!("Account already exists: {}", new_account.address());
+        println!(
+            "Account already exists: {} on localhost",
+            new_account.address()
+        );
     } else {
         let create_new_account_txn = treasury_account.sign_with_transaction_builder(
             factory.payload(encode_create_parent_vasp_account_script_function(
@@ -174,7 +205,10 @@ pub fn create_local_account(
             )),
         );
         send_transaction(client, create_new_account_txn)?;
-        println!("Successfully created account {}", new_account.address());
+        println!(
+            "Successfully created account {} on localhost",
+            new_account.address()
+        );
     }
     println!("Public key: {}", new_account.public_key());
     Ok(())
@@ -203,6 +237,58 @@ fn encode_create_parent_vasp_account_script_function(
             bcs::to_bytes(&add_all_currencies).unwrap(),
         ],
     ))
+}
+
+async fn handle_account_creation_on_network(
+    network: &Network,
+    new_account: &LocalAccount,
+    test_account: &LocalAccount,
+) -> Result<()> {
+    println!("Creating a new account on {}...", network.get_name());
+    let faucet_account_creation_endpoint = network.get_faucet_url()?;
+    create_account_on_network(
+        &faucet_account_creation_endpoint,
+        network.get_json_rpc_url()?,
+        AuthenticationKey::ed25519(new_account.public_key()),
+    )
+    .await?;
+    println!(
+        "Successfully created account {} onto {}",
+        new_account.address(),
+        network.get_name()
+    );
+    println!("Public key: {}", new_account.public_key());
+    create_account_on_network(
+        &faucet_account_creation_endpoint,
+        network.get_json_rpc_url()?,
+        AuthenticationKey::ed25519(test_account.public_key()),
+    )
+    .await?;
+    println!(
+        "Successfully created account {} onto {}",
+        test_account.address(),
+        network.get_name()
+    );
+    println!("Public key: {}", test_account.public_key());
+    Ok(())
+}
+
+async fn create_account_on_network(
+    faucet_account_creation_endpoint: &Url,
+    json_rpc_url: Url,
+    auth_key: AuthenticationKey,
+) -> Result<()> {
+    let faucet_client = FaucetClient::new(
+        faucet_account_creation_endpoint.to_string(),
+        json_rpc_url.to_string(),
+    );
+    tokio::task::spawn_blocking(move || {
+        faucet_client.create_account(auth_key, "XUS").unwrap();
+    })
+    .await
+    .unwrap();
+
+    Ok(())
 }
 
 #[cfg(test)]

@@ -31,6 +31,7 @@ const NEW_KEY_FILE_CONTENT: &[u8] = include_bytes!("../new_account.key");
 const DIEM_ACCOUNT_TYPE: &str = "0x1::DiemAccount::DiemAccount";
 
 pub const LOCALHOST_NAME: &str = "localhost";
+pub const TROVE_TESTNET_NETWORK_NAME: &str = "trove_testnet";
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
@@ -514,6 +515,13 @@ impl Network {
     pub fn get_dev_api_url(&self) -> Result<Url> {
         Ok(Url::from_str(self.dev_api_url.as_str())?)
     }
+
+    pub fn get_faucet_url(&self) -> Result<Url> {
+        match &self.faucet_url {
+            Some(faucet) => Ok(Url::from_str(faucet.as_str())?),
+            None => Err(anyhow!("This network doesn't have a faucet url")),
+        }
+    }
 }
 
 impl Default for Network {
@@ -882,6 +890,15 @@ mod test {
         }
     }
 
+    fn get_test_fake_trove_testnet() -> Network {
+        Network {
+            name: "trove_testnet".to_string(),
+            json_rpc_url: Url::from_str("http://fake_trove_json_rpc.net").unwrap(),
+            dev_api_url: Url::from_str("http://fake_trove_dev_api.net").unwrap(),
+            faucet_url: Some(Url::from_str("http://fake_faucet_dev_api.net").unwrap()),
+        }
+    }
+
     fn get_test_networks_config() -> NetworksConfig {
         let mut network_map = BTreeMap::new();
         network_map.insert("localhost".to_string(), get_test_localhost_network());
@@ -906,6 +923,60 @@ mod test {
     #[test]
     fn test_generate_default_network() {
         assert_eq!(Network::default(), get_test_localhost_network());
+    }
+
+    #[test]
+    fn test_network_get_name() {
+        let localhost_network = get_test_localhost_network();
+        assert_eq!(localhost_network.get_name(), "localhost".to_string());
+
+        let trove_testnet_network = get_test_fake_trove_testnet();
+        assert_eq!(
+            trove_testnet_network.get_name(),
+            "trove_testnet".to_string()
+        );
+    }
+
+    #[test]
+    fn test_network_get_json_rpc_url() {
+        let localhost_network = get_test_localhost_network();
+        assert_eq!(
+            localhost_network.get_json_rpc_url().unwrap(),
+            Url::from_str("http://127.0.0.1:8080").unwrap()
+        );
+
+        let trove_testnet_network = get_test_fake_trove_testnet();
+        assert_eq!(
+            trove_testnet_network.get_json_rpc_url().unwrap(),
+            Url::from_str("http://fake_trove_json_rpc.net").unwrap()
+        );
+    }
+
+    #[test]
+    fn test_network_get_dev_api_url() {
+        let localhost_network = get_test_localhost_network();
+        assert_eq!(
+            localhost_network.get_dev_api_url().unwrap(),
+            Url::from_str("http://127.0.0.1:8080").unwrap()
+        );
+
+        let trove_testnet_network = get_test_fake_trove_testnet();
+        assert_eq!(
+            trove_testnet_network.get_dev_api_url().unwrap(),
+            Url::from_str("http://fake_trove_dev_api.net").unwrap()
+        );
+    }
+
+    #[test]
+    fn test_network_get_faucet_url() {
+        let bad_network = get_test_localhost_network();
+        assert_eq!(bad_network.get_faucet_url().is_err(), true);
+
+        let good_network = get_test_fake_trove_testnet();
+        assert_eq!(
+            good_network.get_faucet_url().unwrap(),
+            Url::from_str("http://fake_faucet_dev_api.net").unwrap()
+        );
     }
 
     #[test]
