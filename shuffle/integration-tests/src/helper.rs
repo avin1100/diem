@@ -3,7 +3,8 @@
 
 use anyhow::Result;
 use diem_sdk::{
-    client::BlockingClient, transaction_builder::TransactionFactory, types::LocalAccount,
+    types::account_config,
+    transaction_builder::TransactionFactory, types::LocalAccount,
 };
 use shuffle::{
     account, deploy, new,
@@ -12,6 +13,7 @@ use shuffle::{
 use std::{path::PathBuf, str::FromStr};
 use tempfile::TempDir;
 use url::Url;
+use shuffle::shared::DevApiClient;
 
 pub struct ShuffleTestHelper {
     home: Home,
@@ -43,14 +45,14 @@ impl ShuffleTestHelper {
         self.tmp_dir.path().join("project")
     }
 
-    pub fn create_accounts(
+    pub async fn create_accounts(
         &self,
         treasury_account: &mut LocalAccount,
         new_account: LocalAccount,
         factory: TransactionFactory,
-        client: BlockingClient,
+        client: DevApiClient,
     ) -> Result<()> {
-        account::create_local_account(treasury_account, &new_account, &factory, &client)
+        account::create_local_account(treasury_account, &new_account, &factory, &client).await
     }
 
     pub fn create_project(&self) -> Result<()> {
@@ -64,5 +66,9 @@ impl ShuffleTestHelper {
     pub async fn deploy_project(&self, dev_api_url: &str) -> Result<()> {
         let url = Url::from_str(dev_api_url)?;
         deploy::handle(&self.network_home, &self.project_path(), url).await
+    }
+
+    pub async fn get_tc_seq_num(&self, client: DevApiClient) -> Result<u64> {
+        Ok(client.get_account_sequence_number(account_config::treasury_compliance_account_address()).await?)
     }
 }

@@ -3,12 +3,12 @@
 
 use crate::{
     account, deploy,
-    shared::{self, normalized_network_name, Home, Network, NetworkHome, MAIN_PKG_PATH},
+    shared::{self, normalized_network_name, DevApiClient, Home, Network, NetworkHome, MAIN_PKG_PATH},
 };
 use anyhow::{anyhow, Result};
 use diem_crypto::PrivateKey;
 use diem_sdk::{
-    client::{AccountAddress, BlockingClient},
+    client::AccountAddress,
     transaction_builder::TransactionFactory,
     types::LocalAccount,
 };
@@ -16,7 +16,6 @@ use diem_types::{chain_id::ChainId, transaction::authenticator::AuthenticationKe
 use move_cli::package::cli::{self, UnitTestResult};
 use move_package::BuildConfig;
 use move_unit_test::UnitTestingConfig;
-use shared::Home;
 use std::{
     path::{Path, PathBuf},
     process::Command,
@@ -34,7 +33,7 @@ pub async fn run_e2e_tests(home: &Home, project_path: &Path, network: Network) -
     shared::generate_typescript_libraries(project_path)?;
 
     println!("Connecting to {}...", network.get_json_rpc_url()?);
-    let client = BlockingClient::new(network.get_json_rpc_url()?.as_str());
+    let client = DevApiClient::new(reqwest::Client::new(), network.get_dev_api_url()?)?;
     let factory = TransactionFactory::new(ChainId::test());
 
     let test_account = create_account(
@@ -42,13 +41,13 @@ pub async fn run_e2e_tests(home: &Home, project_path: &Path, network: Network) -
         network_home.get_test_key_path(),
         &client,
         &factory,
-    )?;
+    ).await?;
     let _receiver_account = create_account(
         home.get_root_key_path(),
         network_home.get_test_key_path(), // TODO: update to a different key to sender
         &client,
         &factory,
-    )?;
+    ).await?;
     deploy::handle(&network_home, project_path, network.get_dev_api_url()?).await?;
 
     run_deno_test(
@@ -60,19 +59,19 @@ pub async fn run_e2e_tests(home: &Home, project_path: &Path, network: Network) -
     )
 }
 
-fn create_account(
+async fn create_account(
     root_key_path: &Path,
     account_key_path: &Path,
-    client: &BlockingClient,
+    client: &DevApiClient,
     factory: &TransactionFactory,
 ) -> Result<LocalAccount> {
-    let mut treasury_account = account::get_treasury_account(client, root_key_path)?;
+    let mut treasury_account = account::get_treasury_account(client, root_key_path).await?;
     // TODO: generate random key by using let account_key = generate_key::generate_key();
     let account_key = generate_key::load_key(account_key_path);
     let public_key = account_key.public_key();
     let derived_address = AuthenticationKey::ed25519(&public_key).derived_address();
     let new_account = LocalAccount::new(derived_address, account_key, 0);
-    account::create_local_account(&mut treasury_account, &new_account, factory, client)?;
+    account::create_local_account(&mut treasury_account, &new_account, factory, client).await?;
     Ok(new_account)
 }
 

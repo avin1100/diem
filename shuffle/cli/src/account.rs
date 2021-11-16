@@ -1,15 +1,13 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::shared::{
-    send_transaction, Home, Network, NetworkHome, LOCALHOST_NAME, TROVE_TESTNET_NETWORK_NAME,
-};
+use crate::shared::{DevApiClient, Home, Network, NetworkHome, LOCALHOST_NAME, TROVE_TESTNET_NETWORK_NAME};
 use anyhow::{anyhow, Result};
 use diem_crypto::PrivateKey;
 
 use diem_infallible::duration_since_epoch;
 use diem_sdk::{
-    client::{BlockingClient, FaucetClient},
+    client::FaucetClient,
     transaction_builder::{Currency, TransactionFactory},
     types::LocalAccount,
 };
@@ -61,7 +59,7 @@ pub async fn handle(home: &Home, root: Option<PathBuf>, network: Network) -> Res
             root,
             &new_account,
             &test_account,
-        ),
+        ).await,
         TROVE_TESTNET_NETWORK_NAME => {
             handle_account_creation_on_network(&network, &new_account, &test_account).await
         }
@@ -69,7 +67,7 @@ pub async fn handle(home: &Home, root: Option<PathBuf>, network: Network) -> Res
     }
 }
 
-fn handle_account_creation_on_localhost(
+async fn handle_account_creation_on_localhost(
     home: &Home,
     network_home: &NetworkHome,
     network: &Network,
@@ -77,17 +75,16 @@ fn handle_account_creation_on_localhost(
     new_account: &LocalAccount,
     test_account: &LocalAccount,
 ) -> Result<()> {
-    println!("Connecting to {}...", network.get_json_rpc_url()?);
-    let client = BlockingClient::new(network.get_json_rpc_url()?);
+    let client = DevApiClient::new(reqwest::Client::new(), network.get_dev_api_url()?)?;
     let factory = TransactionFactory::new(ChainId::test());
 
     if let Some(input_root_key) = root {
         network_home.save_root_key(input_root_key.as_path())?
     }
 
-    let mut treasury_account = get_treasury_account(&client, home.get_root_key_path())?;
-    create_local_account(&mut treasury_account, new_account, &factory, &client)?;
-    create_local_account(&mut treasury_account, test_account, &factory, &client)
+    let mut treasury_account = get_treasury_account(&client, home.get_root_key_path()).await?;
+    create_local_account(&mut treasury_account, new_account, &factory, &client).await?;
+    create_local_account(&mut treasury_account, test_account, &factory, &client).await
 }
 
 fn check_nodeconfig_exists_if_localhost_used(home: &Home, network: &Network) -> Result<()> {
@@ -162,13 +159,9 @@ fn generate_test_account(network_home: &NetworkHome) -> Result<LocalAccount> {
     ))
 }
 
-pub fn get_treasury_account(client: &BlockingClient, root_key_path: &Path) -> Result<LocalAccount> {
+pub async fn get_treasury_account(client: &DevApiClient, root_key_path: &Path) -> Result<LocalAccount> {
     let treasury_account_key = load_key(root_key_path);
-    let treasury_seq_num = client
-        .get_account(account_config::treasury_compliance_account_address())?
-        .into_inner()
-        .unwrap()
-        .sequence_number;
+    let treasury_seq_num = client.get_account_sequence_number(account_config::treasury_compliance_account_address()).await?;
     Ok(LocalAccount::new(
         account_config::treasury_compliance_account_address(),
         treasury_account_key,
@@ -176,40 +169,32 @@ pub fn get_treasury_account(client: &BlockingClient, root_key_path: &Path) -> Re
     ))
 }
 
-pub fn create_local_account(
+pub async fn create_local_account(
     treasury_account: &mut LocalAccount,
     new_account: &LocalAccount,
     factory: &TransactionFactory,
-    client: &BlockingClient,
+    client: &DevApiClient,
 ) -> Result<()> {
     println!("Creating a new account onchain...");
-    if client
-        .get_account(new_account.address())
-        .unwrap()
-        .into_inner()
-        .is_some()
-    {
-        println!(
-            "Account already exists: {} on localhost",
-            new_account.address()
-        );
-    } else {
-        let create_new_account_txn = treasury_account.sign_with_transaction_builder(
-            factory.payload(encode_create_parent_vasp_account_script_function(
-                Currency::XUS.type_tag(),
-                0,
-                new_account.address(),
-                new_account.authentication_key().prefix().to_vec(),
-                vec![],
-                false,
-            )),
-        );
-        send_transaction(client, create_new_account_txn)?;
-        println!(
-            "Successfully created account {} on localhost",
-            new_account.address()
-        );
-    }
+    let create_new_account_txn = treasury_account.sign_with_transaction_builder(
+        factory.payload(encode_create_parent_vasp_account_script_function(
+            Currency::XUS.type_tag(),
+            0,
+            new_account.address(),
+            new_account.authentication_key().prefix().to_vec(),
+            vec![],
+            false,
+        )),
+    );
+    let bytes = bcs::to_bytes(&create_new_account_txn)?;
+    let resp = client.post_transactions(bytes).await?;
+    let json: serde_json::Value = serde_json::from_str(resp.text().await?.as_str())?;
+    let hash = DevApiClient::get_hash_from_post_txn(json)?;
+    client.check_txn_executed_from_hash(hash.as_str()).await?;
+    println!(
+        "Successfully created account {} on localhost",
+        new_account.address()
+    );
     println!("Public key: {}", new_account.public_key());
     Ok(())
 }
