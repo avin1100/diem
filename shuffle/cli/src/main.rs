@@ -22,9 +22,9 @@ mod transactions;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-    let home = Home::new(get_home_path().as_path())?;
-    let subcommand = Subcommand::from_args();
-    match subcommand {
+    let opt = Opt::from_args();
+    let home = Home::new(normalize_home_path(opt.home_struct_home_path).as_path())?;
+    match opt.subcommand {
         Subcommand::New { blockchain, path } => new::handle(&home, blockchain, path),
         Subcommand::Node { genesis } => node::handle(&home, genesis),
         Subcommand::Build { project_path } => {
@@ -85,6 +85,16 @@ pub async fn main() -> Result<()> {
             .await
         }
     }
+}
+
+#[derive(Debug, StructOpt)]
+struct Opt { //todo change name
+    /// If true, persist the effects of replaying transactions via `cmd` to disk in a format understood by the Move CLI //todo fix this
+    #[structopt(long, global = true)]
+    home_struct_home_path: Option<PathBuf>,
+
+    #[structopt(subcommand)] // Note that we mark a field as a subcommand
+    subcommand: Subcommand,
 }
 
 #[derive(Debug, StructOpt)]
@@ -218,5 +228,16 @@ fn unwrap_nested_boolean_option(option: Option<Option<bool>>) -> bool {
         Some(Some(val)) => val,
         Some(_val) => true,
         None => false,
+    }
+}
+
+fn normalize_home_path(home_path: Option<PathBuf>) -> PathBuf {
+    match home_path {
+        Some(path) => {
+            path
+        },
+        None => {
+            get_home_path()
+        }
     }
 }
