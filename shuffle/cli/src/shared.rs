@@ -400,7 +400,10 @@ impl Home {
 pub fn normalized_network(home: &Home, network: Option<String>) -> Result<Url> {
     match network {
         Some(input) => Ok(home.read_networks_toml()?.get(input.as_str())?.dev_api_url),
-        None => Ok(home.read_networks_toml()?.get(LOCALHOST_NAME)?.dev_api_url),
+        None => match home.read_networks_toml() {
+            Ok(networks_config) => Ok(networks_config.get(LOCALHOST_NAME)?.dev_api_url),
+            Err(_) => Err(anyhow!("A project hasn't been created yet. Run shuffle new first"))
+        }
     }
 }
 
