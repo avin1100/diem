@@ -7,3 +7,4 @@ pub mod dev_api_client;
 pub mod new;
 pub mod shared;
 pub mod test;
+pub mod transactions;

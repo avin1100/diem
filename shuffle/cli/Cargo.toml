@@ -20,6 +20,7 @@ rand = "0.8.4"
 reqwest = { version = "0.11.2", features = ["blocking", "json"] }
 serde = { version = "1.0.124", features = ["derive"] }
 structopt = "0.3.21"
+tempfile = "3.2.0"
 tokio = { version = "1.8.1", features = ["full"] }
 toml = "0.5.8"
 url = { version = "2.2.2" }
@@ -38,6 +39,7 @@ diem-types = { path = "../../types" }
 diem-vm = { path = "../../diem-move/diem-vm" }
 diem-workspace-hack = { path = "../../common/workspace-hack" }
 diemdb = { path = "../../storage/diemdb" }
+forge = { path = "../../testsuite/forge" }
 generate-key = { path = "../../config/generate-key" }
 move-binary-format = { path = "../../language/move-binary-format" }
 move-cli = { path = "../../language/tools/move-cli" }
@@ -49,6 +51,7 @@ serde-generate = "0.20.2"
 serde-reflection = "0.3.4"
 serde_json = "1.0.68"
 serde_yaml = "0.8.17"
+smoke-test = { path = "../../testsuite/smoke-test" }
 transaction-builder-generator = { path = "../../diem-move/transaction-builder-generator" }
 
 [[bin]]
@@ -57,3 +60,11 @@ path = "src/main.rs"
 
 [dev-dependencies]
 tempfile = "3.2.0"
+
+[[test]]
+name = "shuffle-forge-integration-tests"
+harness = false
+
+[[test]]
+name = "shuffle-forge-cli-tests"
+harness = false
