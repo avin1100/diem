@@ -6,3 +6,4 @@ pub mod deploy;
 pub mod new;
 pub mod shared;
 pub mod test;
+pub mod transactions;

@@ -33,7 +33,7 @@ pub fn handle(home: &Home, root: Option<PathBuf>, network: Network) -> Result<()
     network_home.generate_paths_if_nonexistent()?;
     check_nodeconfig_exists_if_localhost_used(home, &network)?;
 
-    if network_home.get_latest_account_path().exists() {
+    if network_home.get_latest_account_key_path().exists() {
         match user_wants_another_key(&network_home) {
             true => archive_current_files_in_latest(&network_home)?,
             false => return Ok(()),
