@@ -23,9 +23,9 @@ mod transactions;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
-    let home = Home::new(get_home_path().as_path())?;
-    let subcommand = Subcommand::from_args();
-    match subcommand {
+    let command = Command::from_args();
+    let home = Home::new(normalize_home_path(command.home_path).as_path())?;
+    match command.subcommand {
         Subcommand::New { blockchain, path } => new::handle(&home, blockchain, path),
         Subcommand::Node { genesis } => node::handle(&home, genesis),
         Subcommand::Build { project_path } => {
@@ -87,6 +87,15 @@ pub async fn main() -> Result<()> {
             .await
         }
     }
+}
+
+#[derive(Debug, StructOpt)]
+struct Command {
+    #[structopt(long, global = true)]
+    home_path: Option<PathBuf>,
+
+    #[structopt(subcommand)]
+    subcommand: Subcommand,
 }
 
 #[derive(Debug, StructOpt)]
@@ -191,7 +200,7 @@ fn normalized_address(
 }
 
 fn get_latest_address(network_home: &NetworkHome) -> Result<String> {
-    network_home.check_account_path_exists()?;
+    network_home.check_latest_account_address_exists()?;
     Ok(AccountAddress::from_hex(fs::read_to_string(
         network_home.get_latest_account_address_path(),
     )?)?
@@ -220,5 +229,12 @@ fn unwrap_nested_boolean_option(option: Option<Option<bool>>) -> bool {
         Some(Some(val)) => val,
         Some(_val) => true,
         None => false,
+    }
+}
+
+fn normalize_home_path(home_path: Option<PathBuf>) -> PathBuf {
+    match home_path {
+        Some(path) => path,
+        None => get_home_path(),
     }
 }
