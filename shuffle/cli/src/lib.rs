@@ -4,7 +4,6 @@
 pub mod account;
 pub mod deploy;
 pub mod dev_api_client;
-pub mod forge_test_helper;
 pub mod new;
 pub mod shared;
 pub mod test;

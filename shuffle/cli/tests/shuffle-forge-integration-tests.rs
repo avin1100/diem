@@ -1,9 +1,11 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+mod common;
+
+use common::bootstrap_shuffle;
 use forge::{AdminContext, AdminTest, Test};
 use move_cli::package::cli::UnitTestResult;
-use shuffle::forge_test_helper::bootstrap_shuffle;
 use tempfile::tempdir;
 
 use forge::{forge_main, ForgeConfig, LocalFactory, Options, Result};

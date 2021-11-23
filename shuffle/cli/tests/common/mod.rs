@@ -1,11 +1,6 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
-use crate::{
-    account, deploy,
-    dev_api_client::DevApiClient,
-    new, shared,
-    shared::{Home, Network, NetworkHome, NetworksConfig},
-};
+
 use anyhow::Result;
 use diem_sdk::{
     client::BlockingClient,
@@ -14,6 +9,12 @@ use diem_sdk::{
     types::{AccountKey, LocalAccount},
 };
 use forge::{AdminContext, ChainInfo};
+use shuffle::{
+    account, deploy,
+    dev_api_client::DevApiClient,
+    new, shared,
+    shared::{Home, Network, NetworkHome, NetworksConfig},
+};
 use smoke_test::scripts_and_modules::enable_open_publishing;
 use std::{
     collections::BTreeMap,

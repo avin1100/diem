@@ -1,11 +1,13 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+mod common;
+
 use forge::{
     forge_main, AdminContext, AdminTest, ForgeConfig, LocalFactory, Options, Result, Test,
 };
 
-use shuffle::forge_test_helper::{bootstrap_shuffle, ShuffleTestHelper};
+use common::{bootstrap_shuffle, ShuffleTestHelper};
 use smoke_test::scripts_and_modules::enable_open_publishing;
 use std::{os::unix::prelude::ExitStatusExt, process::ExitStatus};
 use tempfile::tempdir;
