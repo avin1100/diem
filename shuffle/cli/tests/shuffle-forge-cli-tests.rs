@@ -51,8 +51,8 @@ impl AdminTest for TransactionsWithoutProjectFolder {
             .output()?;
         let std_err = String::from_utf8(output.stderr)?;
         assert_eq!(
-            "Error: A project hasn't been created yet. Run shuffle new first\n",
-            std_err
+            std_err.contains("Error: A project hasn't been created yet. Run shuffle new first\n"),
+            true
         );
         assert_eq!(output.status, ExitStatus::from_raw(256));
         Ok(())
@@ -91,8 +91,8 @@ impl AdminTest for TransactionsWithoutAccount {
         let std_err = String::from_utf8(output.stderr)?;
 
         assert_eq!(
-            "Error: An account hasn't been created yet! Run shuffle account first\n",
-            std_err
+            std_err.contains("Error: An account hasn't been created yet! Run shuffle account first\n"),
+            true
         );
         assert_eq!(output.status, ExitStatus::from_raw(256));
         Ok(())
