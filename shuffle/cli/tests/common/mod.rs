@@ -49,7 +49,7 @@ impl ShuffleTestHelper {
         );
         let mut mapping: BTreeMap<String, Network> = BTreeMap::new();
         mapping.insert(FORGE_NETWORK_NAME.to_string(), network.clone());
-        let networks_config = NetworksConfig::_new(mapping);
+        let networks_config = NetworksConfig::new(mapping);
         Ok(Self {
             home,
             network,

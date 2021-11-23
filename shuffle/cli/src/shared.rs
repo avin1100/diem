@@ -344,7 +344,8 @@ pub struct NetworksConfig {
 }
 
 impl NetworksConfig {
-    pub fn _new(networks: BTreeMap<String, Network>) -> NetworksConfig {
+    #[allow(dead_code)]
+    pub fn new(networks: BTreeMap<String, Network>) -> NetworksConfig {
         NetworksConfig { networks }
     }
 
